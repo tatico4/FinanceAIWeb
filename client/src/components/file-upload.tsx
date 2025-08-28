@@ -44,17 +44,18 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
     },
     onSuccess: (data) => {
       toast({
-        title: "Upload Successful",
-        description: "Your financial data has been analyzed successfully!",
+        title: "Análisis Completado",
+        description: "¡Tu información financiera ha sido analizada exitosamente!",
       });
       if (onSuccess && data.analysisId) {
         onSuccess(data.analysisId);
       }
     },
     onError: (error) => {
+      const errorMessage = error instanceof Error ? error.message : "Error al procesar el archivo";
       toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload file",
+        title: "Error de Procesamiento",
+        description: errorMessage,
         variant: "destructive",
       });
       setUploadProgress(0);
@@ -269,6 +270,27 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
           </AlertDescription>
         </Alert>
       )}
+      {/* Format Support Info */}
+      <Card className="glassmorphism bg-yellow-50/50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+        <CardContent className="p-4">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+            <div className="space-y-2">
+              <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">
+                Información sobre Formatos Soportados
+              </h4>
+              <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                <p><strong>✅ Excel (.xlsx, .xls):</strong> Soporte completo - Recomendado</p>
+                <p><strong>✅ CSV (.csv):</strong> Soporte completo - Recomendado</p>
+                <p><strong>⚠️ PDF:</strong> Temporalmente deshabilitado - Convierte a Excel o CSV</p>
+              </div>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                💡 <strong>Consejo:</strong> La mayoría de bancos ofrecen descargar estados de cuenta en formato Excel o CSV desde su banca online.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
