@@ -14,9 +14,9 @@ export default function Recommendations({ recommendations }: RecommendationsProp
       <Card className="glassmorphism bg-card/80 border border-border">
         <CardContent className="p-8 text-center">
           <Lightbulb className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Recommendations Available</h3>
+          <h3 className="text-lg font-semibold mb-2">No hay Recomendaciones Disponibles</h3>
           <p className="text-muted-foreground">
-            Upload more financial data to receive personalized recommendations.
+            Sube más datos financieros para recibir recomendaciones personalizadas.
           </p>
         </CardContent>
       </Card>
@@ -69,9 +69,9 @@ export default function Recommendations({ recommendations }: RecommendationsProp
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4">Smart Recommendations</h2>
+        <h2 className="text-3xl md:text-4xl font-bold mb-4">Recomendaciones Inteligentes</h2>
         <p className="text-xl text-muted-foreground">
-          Personalized insights to improve your financial health
+          Insights personalizados para mejorar tu salud financiera
         </p>
       </div>
       

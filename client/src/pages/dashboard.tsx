@@ -25,7 +25,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Alert className="max-w-md">
-          <AlertDescription>Invalid analysis ID provided.</AlertDescription>
+          <AlertDescription>ID de análisis inválido proporcionado.</AlertDescription>
         </Alert>
       </div>
     );
@@ -60,7 +60,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Alert className="max-w-md">
           <AlertDescription>
-            Failed to load analysis data. Please try uploading your file again.
+            Error al cargar los datos del análisis. Por favor intenta subir tu archivo nuevamente.
           </AlertDescription>
         </Alert>
       </div>
@@ -74,6 +74,25 @@ export default function Dashboard() {
   const recentTransactions = transactions
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10);
+
+  // Calculate additional metrics
+  const averageTransactionAmount = analysis.averageTransactionAmount || 0;
+  const dateRange = analysis.dateRange;
+  const transactionFrequency = analysis.transactionFrequency || {};
+  
+  // Get period information
+  const periodInfo = dateRange ? {
+    start: new Date(dateRange.start).toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }),
+    end: new Date(dateRange.end).toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+  } : null;
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
@@ -97,7 +116,7 @@ export default function Dashboard() {
               <div className="flex items-center space-x-4 mb-2">
                 <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
+                  Atrás
                 </Button>
                 <div className="flex items-center space-x-2">
                   <FileText className="h-5 w-5 text-muted-foreground" />
@@ -105,14 +124,14 @@ export default function Dashboard() {
                 </div>
               </div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Financial Analysis Dashboard
+                Dashboard de Análisis Financiero
               </h1>
               <p className="text-muted-foreground">
-                Comprehensive insights into your financial health based on {transactions.length} transactions
+                Insights completos sobre tu salud financiera basados en {transactions.length} transacciones
               </p>
             </div>
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">Analyzed on</div>
+              <div className="text-sm text-muted-foreground">Analizado el</div>
               <div className="text-sm font-medium">
                 {new Date(analysis.uploadedAt!).toLocaleDateString()}
               </div>
@@ -122,45 +141,81 @@ export default function Dashboard() {
       </div>
 
       <div className="container mx-auto px-6 py-8">
+        {/* Data Summary */}
+        <Card className="glassmorphism bg-card/80 border border-border mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Resumen de Datos Procesados</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 rounded-lg bg-primary/10">
+                <div className="text-2xl font-bold text-primary">{transactions.length}</div>
+                <div className="text-sm text-muted-foreground">Transacciones</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-accent/10">
+                <div className="text-2xl font-bold text-accent">
+                  ${averageTransactionAmount.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">Promedio por Transacción</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-secondary/10">
+                <div className="text-2xl font-bold text-foreground">
+                  {Object.keys(transactionFrequency).length}
+                </div>
+                <div className="text-sm text-muted-foreground">Categorías Identificadas</div>
+              </div>
+              <div className="text-center p-4 rounded-lg bg-muted/10">
+                <div className="text-lg font-bold text-foreground">
+                  {periodInfo ? `${Math.ceil((new Date(dateRange!.end).getTime() - new Date(dateRange!.start).getTime()) / (1000 * 60 * 60 * 24))} días` : 'N/A'}
+                </div>
+                <div className="text-sm text-muted-foreground">Período Analizado</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Financial Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricsCard
-            title="Total Income"
+            title="Ingresos Totales"
             value={`$${analysis.totalIncome?.toLocaleString() || '0'}`}
             icon={TrendingUp}
             trend="+8.2%"
             trendDirection="up"
-            description="This period"
+            description="Este período"
             color="accent"
             data-testid="card-total-income"
           />
           <MetricsCard
-            title="Total Expenses"
+            title="Gastos Totales"
             value={`$${analysis.totalExpenses?.toLocaleString() || '0'}`}
             icon={TrendingDown}
             trend="-3.1%"
             trendDirection="down"
-            description="This period"
+            description="Este período"
             color="destructive"
             data-testid="card-total-expenses"
           />
           <MetricsCard
-            title="Net Savings"
+            title="Ahorros Netos"
             value={`$${((analysis.totalIncome || 0) - (analysis.totalExpenses || 0)).toLocaleString()}`}
             icon={PiggyBank}
             trend="+15.7%"
             trendDirection="up"
-            description="This period"
+            description="Este período"
             color="primary"
             data-testid="card-net-savings"
           />
           <MetricsCard
-            title="Savings Rate"
+            title="Tasa de Ahorro"
             value={`${analysis.savingsRate?.toFixed(1) || '0'}%`}
             icon={Percent}
-            trend="Target: 20%"
+            trend="Meta: 20%"
             trendDirection={analysis.savingsRate! >= 20 ? "up" : "neutral"}
-            description={analysis.savingsRate! >= 20 ? "Above target" : "Below target"}
+            description={analysis.savingsRate! >= 20 ? "Sobre la meta" : "Bajo la meta"}
             color="chart-3"
             data-testid="card-savings-rate"
           />
@@ -173,7 +228,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <ChartLine className="h-5 w-5" />
-                <span>Spending by Category</span>
+                <span>Gastos por Categoría</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -200,7 +255,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <TrendingUp className="h-5 w-5" />
-                <span>Income vs Expenses</span>
+                <span>Ingresos vs Gastos</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -215,6 +270,48 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* Category Details */}
+        <Card className="glassmorphism bg-card/80 border border-border mb-8">
+          <CardHeader>
+            <CardTitle>Desglose Detallado por Categoría</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((category, index) => (
+                <div key={index} className="p-4 rounded-lg border border-border/50 bg-secondary/20">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <h3 className="font-semibold">{category.name}</h3>
+                  </div>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Monto Total:</span>
+                      <span className="font-medium">${category.amount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Porcentaje:</span>
+                      <span className="font-medium">{category.percentage.toFixed(1)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Transacciones:</span>
+                      <span className="font-medium">{category.transactionCount || transactionFrequency[category.name] || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Promedio:</span>
+                      <span className="font-medium">
+                        ${category.transactionCount ? (category.amount / category.transactionCount).toFixed(2) : '0.00'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Recommendations */}
         <div className="mb-8">
           <Recommendations recommendations={recommendations} />
@@ -223,17 +320,17 @@ export default function Dashboard() {
         {/* Transactions Table */}
         <Card className="glassmorphism bg-card/80 border border-border">
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>Transacciones Recientes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full" data-testid="table-transactions">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Description</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Category</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Amount</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Fecha</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Descripción</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Categoría</th>
+                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Monto</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -12,51 +12,51 @@ export default function Landing() {
   const features = [
     {
       icon: Brain,
-      title: "AI-Powered Categorization",
-      description: "Advanced machine learning automatically categorizes your transactions with 95% accuracy, learning from your patterns."
+      title: "Categorización con IA",
+      description: "Aprendizaje automático avanzado que categoriza automáticamente tus transacciones con 95% de precisión, aprendiendo de tus patrones."
     },
     {
       icon: ChartLine,
-      title: "Interactive Visualizations",
-      description: "Beautiful, interactive charts and graphs that make your financial data easy to understand and analyze."
+      title: "Visualizaciones Interactivas",
+      description: "Gráficos hermosos e interactivos que hacen que tus datos financieros sean fáciles de entender y analizar."
     },
     {
       icon: Lightbulb,
-      title: "Smart Recommendations",
-      description: "Get personalized insights and actionable recommendations to optimize your spending and increase savings."
+      title: "Recomendaciones Inteligentes",
+      description: "Obtén insights personalizados y recomendaciones accionables para optimizar tus gastos e incrementar tus ahorros."
     },
     {
       icon: FileText,
-      title: "Multiple File Formats",
-      description: "Support for PDF bank statements, Excel spreadsheets, and CSV files from all major financial institutions."
+      title: "Múltiples Formatos",
+      description: "Compatible con estados de cuenta PDF, hojas de Excel y archivos CSV de todas las principales instituciones financieras."
     },
     {
       icon: Shield,
-      title: "Bank-Level Security",
-      description: "Your financial data is encrypted and automatically deleted after analysis. We never store sensitive information."
+      title: "Seguridad Bancaria",
+      description: "Tus datos financieros están encriptados y se eliminan automáticamente después del análisis. Nunca almacenamos información sensible."
     },
     {
       icon: Smartphone,
-      title: "Mobile Responsive",
-      description: "Access your financial insights on any device with our fully responsive, mobile-first design."
+      title: "Diseño Responsivo",
+      description: "Accede a tus insights financieros en cualquier dispositivo con nuestro diseño completamente responsivo y mobile-first."
     }
   ];
 
   const steps = [
     {
       number: 1,
-      title: "Upload Your Files",
-      description: "Drag and drop your bank statements in PDF, Excel, or CSV format. We support all major financial institutions."
+      title: "Sube tus Archivos",
+      description: "Arrastra y suelta tus estados de cuenta en formato PDF, Excel o CSV. Soportamos todas las principales instituciones financieras."
     },
     {
       number: 2,
-      title: "AI Analysis",
-      description: "Our AI engine processes your data, categorizes transactions, and identifies spending patterns in seconds."
+      title: "Análisis con IA",
+      description: "Nuestro motor de IA procesa tus datos, categoriza transacciones e identifica patrones de gasto en segundos."
     },
     {
       number: 3,
-      title: "Get Insights",
-      description: "View interactive dashboards, receive personalized recommendations, and track your financial progress."
+      title: "Obtén Insights",
+      description: "Ve dashboards interactivos, recibe recomendaciones personalizadas y rastrea tu progreso financiero."
     }
   ];
 
@@ -82,21 +82,21 @@ export default function Landing() {
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
-                Features
+                Características
               </a>
               <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
-                How It Works
+                Cómo Funciona
               </a>
               <a href="#upload" className="text-muted-foreground hover:text-foreground transition-colors">
-                Upload
+                Subir Archivo
               </a>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Sign In
+                Iniciar Sesión
               </Button>
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleStartAnalysis}>
-                Get Started
+                Comenzar
               </Button>
             </div>
           </div>
@@ -108,11 +108,11 @@ export default function Landing() {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
-              Unlock Your
-              <span className="block">Financial Intelligence</span>
+              Libera tu
+              <span className="block">Inteligencia Financiera</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Upload your bank statements and get AI-powered insights, smart categorization, and personalized recommendations to optimize your financial health.
+              Sube tus estados de cuenta y obtén insights con IA, categorización inteligente y recomendaciones personalizadas para optimizar tu salud financiera.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
@@ -122,7 +122,7 @@ export default function Landing() {
                 data-testid="button-start-analysis"
               >
                 <Upload className="mr-2 h-5 w-5" />
-                Start Analysis
+                Iniciar Análisis
               </Button>
               <Button 
                 size="lg" 
@@ -131,7 +131,7 @@ export default function Landing() {
                 data-testid="button-watch-demo"
               >
                 <ChartLine className="mr-2 h-5 w-5" />
-                Watch Demo
+                Ver Demo
               </Button>
             </div>
           </div>
@@ -144,39 +144,39 @@ export default function Landing() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-gradient-to-r from-accent/20 to-accent/10 rounded-xl p-6 border border-accent/20">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-muted-foreground">Monthly Income</span>
+                        <span className="text-muted-foreground">Ingresos Mensuales</span>
                         <TrendingUp className="h-5 w-5 text-accent" />
                       </div>
                       <div className="text-3xl font-bold text-accent">$8,420</div>
-                      <div className="text-sm text-accent/70">+12% from last month</div>
+                      <div className="text-sm text-accent/70">+12% del mes pasado</div>
                     </div>
                     <div className="bg-gradient-to-r from-destructive/20 to-destructive/10 rounded-xl p-6 border border-destructive/20">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-muted-foreground">Monthly Expenses</span>
+                        <span className="text-muted-foreground">Gastos Mensuales</span>
                         <TrendingUp className="h-5 w-5 text-destructive rotate-180" />
                       </div>
                       <div className="text-3xl font-bold text-destructive">$6,180</div>
-                      <div className="text-sm text-destructive/70">-5% from last month</div>
+                      <div className="text-sm text-destructive/70">-5% del mes pasado</div>
                     </div>
                     <div className="bg-gradient-to-r from-primary/20 to-primary/10 rounded-xl p-6 border border-primary/20">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-muted-foreground">Savings Rate</span>
+                        <span className="text-muted-foreground">Tasa de Ahorro</span>
                         <PiggyBank className="h-5 w-5 text-primary" />
                       </div>
                       <div className="text-3xl font-bold text-primary">26.6%</div>
-                      <div className="text-sm text-primary/70">Above target</div>
+                      <div className="text-sm text-primary/70">Sobre el objetivo</div>
                     </div>
                   </div>
                   
                   <div className="bg-secondary/50 rounded-xl p-6 border border-border/50">
-                    <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
+                    <h3 className="text-lg font-semibold mb-4">Gastos por Categoría</h3>
                     <div className="flex items-end justify-between h-32 space-x-2">
                       {[
-                        { label: 'Food', height: '80%', color: 'chart-1' },
-                        { label: 'Transport', height: '65%', color: 'chart-2' },
-                        { label: 'Shopping', height: '45%', color: 'chart-3' },
-                        { label: 'Entertainment', height: '30%', color: 'chart-4' },
-                        { label: 'Health', height: '20%', color: 'chart-5' }
+                        { label: 'Comida', height: '80%', color: 'chart-1' },
+                        { label: 'Transporte', height: '65%', color: 'chart-2' },
+                        { label: 'Compras', height: '45%', color: 'chart-3' },
+                        { label: 'Entretenimiento', height: '30%', color: 'chart-4' },
+                        { label: 'Salud', height: '20%', color: 'chart-5' }
                       ].map((item, index) => (
                         <div key={index} className="flex flex-col items-center">
                           <div 
@@ -199,9 +199,9 @@ export default function Landing() {
       <section id="features" className="py-20 px-6">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Powerful Features</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">Características Poderosas</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to understand and optimize your financial life
+              Todo lo que necesitas para entender y optimizar tu vida financiera
             </p>
           </div>
           
@@ -225,9 +225,9 @@ export default function Landing() {
       <section id="how-it-works" className="py-20 px-6 bg-secondary/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">How It Works</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">Cómo Funciona</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get financial insights in three simple steps
+              Obtén insights financieros en tres simples pasos
             </p>
           </div>
           
@@ -249,9 +249,9 @@ export default function Landing() {
       <section id="upload" className="py-20 px-6">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Upload Your Financial Data</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">Sube tus Datos Financieros</h2>
             <p className="text-xl text-muted-foreground">
-              Securely upload your bank statements to get started with your financial analysis
+              Sube de forma segura tus estados de cuenta para comenzar con tu análisis financiero
             </p>
           </div>
           
@@ -273,32 +273,32 @@ export default function Landing() {
                 </span>
               </div>
               <p className="text-muted-foreground mb-6 max-w-md">
-                Transform your financial data into actionable insights with AI-powered analysis and personalized recommendations.
+                Transforma tus datos financieros en insights accionables con análisis con IA y recomendaciones personalizadas.
               </p>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Product</h4>
+              <h4 className="font-semibold mb-4">Producto</h4>
               <ul className="space-y-2">
-                <li><a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a></li>
+                <li><a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Características</a></li>
+                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Precios</a></li>
                 <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">API</a></li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
+              <h4 className="font-semibold mb-4">Soporte</h4>
               <ul className="space-y-2">
-                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Help Center</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Centro de Ayuda</a></li>
+                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Política de Privacidad</a></li>
+                <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Términos de Servicio</a></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-border mt-8 pt-8 text-center">
             <p className="text-muted-foreground">
-              © 2023 FinanceAI. All rights reserved. Your financial data is never stored or shared.
+              © 2023 FinanceAI. Todos los derechos reservados. Tus datos financieros nunca se almacenan ni se comparten.
             </p>
           </div>
         </div>

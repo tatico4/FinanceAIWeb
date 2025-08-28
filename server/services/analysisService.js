@@ -6,14 +6,29 @@ import { getCategoryStats } from './categorizer.js';
  * @returns {Object} Financial metrics and insights
  */
 export function generateAnalysis(transactions) {
-  // Calculate basic metrics
+  if (!transactions || transactions.length === 0) {
+    return {
+      totalIncome: 0,
+      totalExpenses: 0,
+      totalSavings: 0,
+      savingsRate: 0,
+      categories: [],
+      monthlyTrend: [],
+      transactionCount: 0,
+      averageTransactionAmount: 0,
+      transactionFrequency: {},
+      dateRange: null
+    };
+  }
+
+  // Calculate basic metrics with proper handling of positive/negative amounts
   const income = transactions
-    .filter(t => t.type === 'income')
+    .filter(t => t.amount > 0) // Positive amounts are income
     .reduce((sum, t) => sum + t.amount, 0);
     
-  const expenses = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const expenses = Math.abs(transactions
+    .filter(t => t.amount < 0) // Negative amounts are expenses
+    .reduce((sum, t) => sum + t.amount, 0));
     
   const savings = income - expenses;
   const savingsRate = income > 0 ? (savings / income) * 100 : 0;
@@ -21,17 +36,39 @@ export function generateAnalysis(transactions) {
   // Get category breakdown
   const categories = getCategoryStats(transactions);
   
-  // Generate monthly trend (simplified for demo)
+  // Generate monthly trend
   const monthlyTrend = generateMonthlyTrend(transactions);
   
+  // Calculate additional metrics
+  const averageTransactionAmount = transactions.length > 0 
+    ? transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length 
+    : 0;
+  
+  // Calculate transaction frequency by category
+  const transactionFrequency = {};
+  transactions.forEach(t => {
+    const category = t.category || 'Otros';
+    transactionFrequency[category] = (transactionFrequency[category] || 0) + 1;
+  });
+  
+  // Get date range
+  const dates = transactions.map(t => new Date(t.date)).sort((a, b) => a - b);
+  const dateRange = dates.length > 0 ? {
+    start: dates[0].toISOString(),
+    end: dates[dates.length - 1].toISOString()
+  } : null;
+  
   return {
-    totalIncome: income,
-    totalExpenses: expenses,
-    totalSavings: savings,
+    totalIncome: Math.round(income * 100) / 100,
+    totalExpenses: Math.round(expenses * 100) / 100,
+    totalSavings: Math.round(savings * 100) / 100,
     savingsRate: Math.round(savingsRate * 100) / 100,
     categories,
     monthlyTrend,
-    transactionCount: transactions.length
+    transactionCount: transactions.length,
+    averageTransactionAmount: Math.round(averageTransactionAmount * 100) / 100,
+    transactionFrequency,
+    dateRange
   };
 }
 

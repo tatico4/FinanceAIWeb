@@ -5,9 +5,9 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertAnalysisSchema } from "@shared/schema";
-import { processFile } from "./services/fileProcessor.js";
-import { categorizeTransactions } from "./services/categorizer.js";
-import { generateAnalysis, generateRecommendations } from "./services/analysisService.js";
+import { processFile } from "./services/fileProcessor";
+import { categorizeTransactions } from "./services/categorizer";
+import { generateAnalysis, generateRecommendations } from "./services/analysisService";
 
 // Extend Request interface to include file property
 interface MulterRequest extends Request {

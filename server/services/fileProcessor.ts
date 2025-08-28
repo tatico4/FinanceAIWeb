@@ -2,15 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-// Dynamic import for pdf-parse to avoid initialization issues
+
+export interface RawTransaction {
+  date: string;
+  description: string;
+  amount: number;
+}
 
 /**
  * Process uploaded file and extract transaction data
- * @param {string} filePath - Path to the uploaded file
- * @param {string} fileType - File extension (.pdf, .xlsx, .csv)
- * @returns {Promise<Array>} Array of raw transaction objects
  */
-export async function processFile(filePath, fileType) {
+export async function processFile(filePath: string, fileType: string): Promise<RawTransaction[]> {
   const fileBuffer = fs.readFileSync(filePath);
   
   switch (fileType) {
@@ -30,14 +32,14 @@ export async function processFile(filePath, fileType) {
  * Process PDF bank statements
  * Extracts transaction data from PDF text using pattern matching
  */
-async function processPDF(buffer) {
+async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
   try {
     // Dynamic import to avoid initialization issues
     const pdfParse = await import('pdf-parse');
     const data = await pdfParse.default(buffer);
     const text = data.text;
     
-    const transactions = [];
+    const transactions: RawTransaction[] = [];
     const lines = text.split('\n');
     
     // Common patterns for bank statements
@@ -54,32 +56,30 @@ async function processPDF(buffer) {
     
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (trimmedLine.length < 10) continue; // Skip short lines
+      if (trimmedLine.length < 10) continue;
       
-      for (const pattern of patterns) {
+      for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
         const match = trimmedLine.match(pattern);
         if (match) {
           try {
-            let dateStr, description, amountStr;
+            let dateStr: string, description: string, amountStr: string;
             
-            if (pattern === patterns[3]) {
+            if (i === 3) {
               // Special case where description comes first
               [, description, dateStr, amountStr] = match;
             } else {
               [, dateStr, description, amountStr] = match;
             }
             
-            // Parse date
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) continue;
             
-            // Parse amount
             const cleanAmount = amountStr.replace(/[$,\s]/g, '');
             let amount = parseFloat(cleanAmount);
             if (isNaN(amount)) continue;
             
-            // Determine if it's a debit or credit
-            // If no sign and it's a common expense keyword, make it negative
+            // Determine if it's a debit or credit based on keywords
             if (amount > 0 && !amountStr.includes('+')) {
               const expenseKeywords = ['compra', 'pago', 'retiro', 'purchase', 'payment', 'withdrawal', 'fee', 'charge'];
               if (expenseKeywords.some(keyword => 
@@ -95,16 +95,15 @@ async function processPDF(buffer) {
               amount: amount,
             });
             
-            break; // Found a match, move to next line
+            break;
           } catch (e) {
-            // Continue with next pattern if parsing fails
             continue;
           }
         }
       }
     }
     
-    // If no transactions found with patterns, try a more flexible approach
+    // Flexible parsing if no patterns match
     if (transactions.length === 0) {
       console.log('No transactions found with standard patterns, trying flexible parsing...');
       
@@ -112,15 +111,13 @@ async function processPDF(buffer) {
         const trimmedLine = line.trim();
         if (trimmedLine.length < 10) continue;
         
-        // Look for any date pattern
         const dateMatches = trimmedLine.match(/\d{1,4}[\/\-]\d{1,2}[\/\-]\d{2,4}/g);
-        // Look for any amount pattern
         const amountMatches = trimmedLine.match(/[-+]?\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})/g);
         
         if (dateMatches && amountMatches) {
           try {
             const dateStr = dateMatches[0];
-            const amountStr = amountMatches[amountMatches.length - 1]; // Take last amount if multiple
+            const amountStr = amountMatches[amountMatches.length - 1];
             
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) continue;
@@ -128,7 +125,6 @@ async function processPDF(buffer) {
             const amount = parseFloat(amountStr.replace(/[$,]/g, ''));
             if (isNaN(amount)) continue;
             
-            // Extract description (everything between date and amount)
             const description = trimmedLine
               .replace(dateMatches[0], '')
               .replace(amountMatches[amountMatches.length - 1], '')
@@ -152,22 +148,21 @@ async function processPDF(buffer) {
       throw new Error('No se pudieron extraer transacciones del PDF. Verifique que el archivo contenga un estado de cuenta bancario válido.');
     }
     
-    // Sort transactions by date
-    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     console.log(`Extracted ${transactions.length} transactions from PDF`);
     return transactions;
     
   } catch (error) {
     console.error('PDF processing error:', error);
-    throw new Error(`Error procesando PDF: ${error.message}`);
+    throw new Error(`Error procesando PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
 
 /**
  * Process Excel files
  */
-function processExcel(buffer) {
+function processExcel(buffer: Buffer): RawTransaction[] {
   try {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -178,10 +173,9 @@ function processExcel(buffer) {
       throw new Error('El archivo Excel está vacío o no contiene datos válidos.');
     }
     
-    const transactions = [];
+    const transactions: RawTransaction[] = [];
     
     for (const row of data) {
-      // Try to find date, description, and amount columns with more variations
       const dateCol = findColumn(row, [
         'date', 'transaction_date', 'posted_date', 'fecha', 'fecha_transaccion',
         'processing_date', 'effective_date', 'trans_date', 'transaction date'
@@ -195,17 +189,14 @@ function processExcel(buffer) {
         'transaction_amount', 'debits', 'credits', 'balance_change'
       ]);
       
-      // Also check for separate debit/credit columns
       const debitCol = findColumn(row, ['debit', 'debits', 'debit_amount', 'debe', 'cargo']);
       const creditCol = findColumn(row, ['credit', 'credits', 'credit_amount', 'haber', 'abono']);
       
       if (dateCol && descCol && (amountCol || debitCol || creditCol)) {
         try {
-          // Parse date
-          let date;
-          const dateValue = row[dateCol];
+          let date: Date;
+          const dateValue = (row as any)[dateCol];
           if (typeof dateValue === 'number') {
-            // Excel date serial number
             date = new Date((dateValue - 25569) * 86400 * 1000);
           } else {
             date = new Date(dateValue);
@@ -213,20 +204,19 @@ function processExcel(buffer) {
           
           if (isNaN(date.getTime())) continue;
           
-          // Parse amount
           let amount = 0;
           if (amountCol) {
-            const amountStr = String(row[amountCol]).replace(/[$,\s]/g, '');
+            const amountStr = String((row as any)[amountCol]).replace(/[$,\s]/g, '');
             amount = parseFloat(amountStr);
           } else if (debitCol || creditCol) {
-            const debitValue = debitCol ? parseFloat(String(row[debitCol] || 0).replace(/[$,\s]/g, '')) : 0;
-            const creditValue = creditCol ? parseFloat(String(row[creditCol] || 0).replace(/[$,\s]/g, '')) : 0;
-            amount = creditValue - debitValue; // Credits are positive, debits are negative
+            const debitValue = debitCol ? parseFloat(String((row as any)[debitCol] || 0).replace(/[$,\s]/g, '')) : 0;
+            const creditValue = creditCol ? parseFloat(String((row as any)[creditCol] || 0).replace(/[$,\s]/g, '')) : 0;
+            amount = creditValue - debitValue;
           }
           
           if (isNaN(amount)) continue;
           
-          const description = String(row[descCol]).trim();
+          const description = String((row as any)[descCol]).trim();
           if (description.length > 1) {
             transactions.push({
               date: date.toISOString(),
@@ -235,7 +225,7 @@ function processExcel(buffer) {
             });
           }
         } catch (e) {
-          continue; // Skip invalid rows
+          continue;
         }
       }
     }
@@ -244,21 +234,20 @@ function processExcel(buffer) {
       throw new Error('No se pudieron extraer transacciones del archivo Excel. Verifique que contenga columnas de fecha, descripción y monto.');
     }
     
-    // Sort transactions by date
-    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     console.log(`Extracted ${transactions.length} transactions from Excel file`);
     return transactions;
   } catch (error) {
     console.error('Excel processing error:', error);
-    throw new Error(`Error procesando archivo Excel: ${error.message}`);
+    throw new Error(`Error procesando archivo Excel: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
 
 /**
  * Process CSV files
  */
-function processCSV(buffer) {
+function processCSV(buffer: Buffer): RawTransaction[] {
   try {
     const csvText = buffer.toString('utf-8');
     const result = Papa.parse(csvText, {
@@ -275,12 +264,11 @@ function processCSV(buffer) {
       throw new Error('El archivo CSV está vacío o no contiene datos válidos.');
     }
     
-    const transactions = [];
+    const transactions: RawTransaction[] = [];
     
     for (const row of result.data) {
       if (!row || typeof row !== 'object') continue;
       
-      // Try to find date, description, and amount columns with more variations
       const dateCol = findColumn(row, [
         'date', 'transaction_date', 'posted_date', 'fecha', 'fecha_transaccion',
         'processing_date', 'effective_date', 'trans_date', 'transaction date'
@@ -294,32 +282,29 @@ function processCSV(buffer) {
         'transaction_amount', 'debits', 'credits', 'balance_change'
       ]);
       
-      // Also check for separate debit/credit columns
       const debitCol = findColumn(row, ['debit', 'debits', 'debit_amount', 'debe', 'cargo']);
       const creditCol = findColumn(row, ['credit', 'credits', 'credit_amount', 'haber', 'abono']);
       
       if (dateCol && descCol && (amountCol || debitCol || creditCol)) {
         try {
-          // Parse date
-          const dateValue = row[dateCol];
+          const dateValue = (row as any)[dateCol];
           const date = new Date(dateValue);
           
           if (isNaN(date.getTime())) continue;
           
-          // Parse amount
           let amount = 0;
           if (amountCol) {
-            const amountStr = String(row[amountCol] || '').replace(/[$,\s]/g, '');
+            const amountStr = String((row as any)[amountCol] || '').replace(/[$,\s]/g, '');
             amount = parseFloat(amountStr);
           } else if (debitCol || creditCol) {
-            const debitValue = debitCol ? parseFloat(String(row[debitCol] || 0).replace(/[$,\s]/g, '')) : 0;
-            const creditValue = creditCol ? parseFloat(String(row[creditCol] || 0).replace(/[$,\s]/g, '')) : 0;
-            amount = creditValue - debitValue; // Credits are positive, debits are negative
+            const debitValue = debitCol ? parseFloat(String((row as any)[debitCol] || 0).replace(/[$,\s]/g, '')) : 0;
+            const creditValue = creditCol ? parseFloat(String((row as any)[creditCol] || 0).replace(/[$,\s]/g, '')) : 0;
+            amount = creditValue - debitValue;
           }
           
           if (isNaN(amount)) continue;
           
-          const description = String(row[descCol] || '').trim();
+          const description = String((row as any)[descCol] || '').trim();
           if (description.length > 1) {
             transactions.push({
               date: date.toISOString(),
@@ -328,7 +313,7 @@ function processCSV(buffer) {
             });
           }
         } catch (e) {
-          continue; // Skip invalid rows
+          continue;
         }
       }
     }
@@ -337,21 +322,20 @@ function processCSV(buffer) {
       throw new Error('No se pudieron extraer transacciones del archivo CSV. Verifique que contenga columnas de fecha, descripción y monto.');
     }
     
-    // Sort transactions by date
-    transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     console.log(`Extracted ${transactions.length} transactions from CSV file`);
     return transactions;
   } catch (error) {
     console.error('CSV processing error:', error);
-    throw new Error(`Error procesando archivo CSV: ${error.message}`);
+    throw new Error(`Error procesando archivo CSV: ${error instanceof Error ? error.message : 'Error desconocido'}`);
   }
 }
 
 /**
  * Helper function to find column by multiple possible names
  */
-function findColumn(row, possibleNames) {
+function findColumn(row: any, possibleNames: string[]): string | null {
   for (const name of possibleNames) {
     for (const key of Object.keys(row)) {
       if (key.toLowerCase().includes(name.toLowerCase())) {
