@@ -280,12 +280,12 @@ export default function FileUpload({ onSuccess }: FileUploadProps) {
                 Información sobre Formatos Soportados
               </h4>
               <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                <p><strong>✅ PDF:</strong> Soporte completo para estados de cuenta bancarios</p>
                 <p><strong>✅ Excel (.xlsx, .xls):</strong> Soporte completo - Recomendado</p>
                 <p><strong>✅ CSV (.csv):</strong> Soporte completo - Recomendado</p>
-                <p><strong>⚠️ PDF:</strong> Temporalmente deshabilitado - Convierte a Excel o CSV</p>
               </div>
               <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
-                💡 <strong>Consejo:</strong> La mayoría de bancos ofrecen descargar estados de cuenta en formato Excel o CSV desde su banca online.
+                💡 <strong>Consejo:</strong> Para mejores resultados, usa archivos PDF originales de tu banco o exporta a Excel/CSV desde tu banca online.
               </p>
             </div>
           </div>
