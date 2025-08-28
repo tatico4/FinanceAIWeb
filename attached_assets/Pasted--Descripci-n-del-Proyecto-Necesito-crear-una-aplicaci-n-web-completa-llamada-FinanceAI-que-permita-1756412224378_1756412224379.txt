@@ -1,0 +1,264 @@
+📋 Descripción del Proyecto
+Necesito crear una aplicación web completa llamada FinanceAI que permita a los usuarios subir sus estados de cuenta bancarios (PDF, Excel, CSV) y obtener análisis financieros inteligentes con las siguientes funcionalidades:
+🎯 Funcionalidades Principal
+
+Landing Page atractiva que explique el servicio
+Upload de archivos con drag & drop
+Procesamiento y categorización automática de transacciones usando IA/ML
+Visualizaciones interactivas (gráficos de torta, barras, líneas)
+Recomendaciones personalizadas de ahorro e inversión
+Dashboard con métricas financieras clave
+
+🛠 Stack Tecnológico Requerido
+Frontend:
+
+React 18 con hooks (useState, useEffect, useRef)
+Tailwind CSS para estilos modernos
+Recharts para gráficos interactivos
+Lucide React para iconos
+Framer Motion (opcional) para animaciones
+
+Backend:
+
+Node.js con Express.js
+Multer para upload de archivos
+pdf-parse para procesar PDFs
+xlsx para procesar archivos Excel
+papaparse para CSV
+cors para CORS
+dotenv para variables de entorno
+
+Base de Datos:
+
+SQLite (para desarrollo) o PostgreSQL (producción)
+Prisma como ORM
+
+IA/ML:
+
+OpenAI API (opcional) para categorización avanzada
+Natural (NLP en JavaScript) para procesamiento de texto
+Algoritmos de categorización basados en reglas y palabras clave
+
+📁 Estructura de Archivos
+finance-ai/
+├── client/                 # Frontend React
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── LandingPage.jsx
+│   │   │   ├── FileUpload.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Charts.jsx
+│   │   │   ├── Recommendations.jsx
+│   │   │   └── Navigation.jsx
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── App.jsx
+│   ├── public/
+│   └── package.json
+├── server/                 # Backend Node.js
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── upload.js
+│   │   │   ├── analysis.js
+│   │   │   └── recommendations.js
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   │   ├── fileProcessor.js
+│   │   │   ├── categorizer.js
+│   │   │   └── aiService.js
+│   │   ├── models/
+│   │   ├── middleware/
+│   │   └── app.js
+│   ├── uploads/            # Archivos subidos temporalmente
+│   └── package.json
+├── shared/                 # Tipos y utilidades compartidas
+└── README.md
+🎨 Diseño y UX
+Página de Inicio:
+
+Hero section con gradientes modernos y animaciones
+Explicación del proceso en 3 pasos visuales
+Características destacadas con iconos
+Testimonios/estadísticas para generar confianza
+CTA prominente para comenzar
+
+Dashboard:
+
+Cards con métricas principales (ingresos, gastos, ahorro)
+Gráfico de torta para distribución por categorías
+Gráfico de barras para comparación de gastos
+Tabla detallada de transacciones categorizadas
+Sección de recomendaciones personalizadas
+
+Estilos:
+
+Tema oscuro moderno con gradientes
+Glassmorphism y efectos de blur
+Animaciones suaves y micro-interacciones
+Responsive design para móviles
+Estados de carga y feedback visual
+
+🧠 Lógica de Categorización
+Sistema de Reglas:
+javascriptconst categoryRules = {
+  'Alimentación': ['SUPERMERCADO', 'JUMBO', 'LIDER', 'RESTAURANT', 'MCDONALDS'],
+  'Transporte': ['SHELL', 'COPEC', 'UBER', 'METRO', 'BIP'],
+  'Entretenimiento': ['NETFLIX', 'SPOTIFY', 'CINE', 'STEAM'],
+  'Salud': ['FARMACIA', 'HOSPITAL', 'CLINICA', 'ISAPRE'],
+  'Educación': ['UNIVERSIDAD', 'INSTITUTO', 'COLEGIO'],
+  // ... más categorías
+};
+Algoritmo ML Básico:
+
+Preprocesamiento de texto (limpiar, normalizar)
+Extracción de características (keywords, patrones)
+Clasificación usando similarity scoring
+Machine learning incremental basado en feedback
+
+📊 Funciones de Análisis
+Métricas Principales:
+
+Ingresos totales del período
+Gastos totales por categoría
+Tasa de ahorro (ingresos - gastos) / ingresos
+Comparación mes anterior
+Proyección futura basada en tendencias
+
+Recomendaciones:
+
+Ahorro: Si tasa < 20%, sugerir recortes
+Inversiones: Calcular capacidad de inversión
+Presupuesto: Sugerir límites por categoría
+Alertas: Gastos inusuales o picos
+
+🔒 Seguridad y Privacidad
+Medidas Implementar:
+
+Encriptación de archivos subidos
+Eliminación automática de archivos tras procesamiento
+Sanitización de datos de entrada
+Rate limiting para prevenir abuso
+Validación estricta de tipos de archivo
+No almacenamiento de datos sensibles
+
+📦 Dependencias Principales
+Frontend (package.json):
+json{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.8.0",
+    "lucide-react": "^0.263.1",
+    "framer-motion": "^10.16.0",
+    "axios": "^1.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.3",
+    "vite": "^4.4.5",
+    "tailwindcss": "^3.3.0"
+  }
+}
+Backend (package.json):
+json{
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5",
+    "papaparse": "^5.4.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "natural": "^6.7.0",
+    "prisma": "^5.3.1"
+  }
+}
+🚀 Pasos de Desarrollo
+Fase 1 - Setup y Base:
+
+Crear estructura de carpetas
+Configurar React con Vite
+Configurar Tailwind CSS
+Crear componentes base de UI
+Setup del servidor Express
+
+Fase 2 - Core Functionality:
+
+Implementar upload de archivos
+Crear parsers para PDF/Excel/CSV
+Desarrollar algoritmo de categorización
+Crear sistema de análisis de datos
+
+Fase 3 - Frontend:
+
+Landing page con animaciones
+Dashboard interactivo con gráficos
+Sistema de recomendaciones
+Estados de carga y error handling
+
+Fase 4 - Optimización:
+
+Performance optimization
+Testing y debugging
+Responsive design
+Deploy preparation
+
+🎯 Objetivos de UX
+Conversión:
+
+Landing page que convierta visitantes en usuarios
+Onboarding simple de 3 pasos
+Valor inmediato tras subir archivo
+Sharing fácil de insights
+
+Retención:
+
+Insights accionables y personalizados
+Comparaciones temporales para mostrar progreso
+Gamificación sutil (logros de ahorro)
+Educación financiera integrada
+
+📱 Consideraciones Móviles
+
+Touch-friendly drag & drop
+Gráficos responsivos que se adapten a pantallas pequeñas
+Navegación optimizada para móvil
+Carga rápida y rendimiento optimizado
+Offline capabilities básicas
+
+🔧 Variables de Entorno
+env# Server
+PORT=3001
+NODE_ENV=development
+
+# Database
+DATABASE_URL="sqlite:./dev.db"
+
+# File Upload
+MAX_FILE_SIZE=10485760  # 10MB
+UPLOAD_DIR="./uploads"
+
+# AI/ML (opcional)
+OPENAI_API_KEY="your-key-here"
+
+# Security
+JWT_SECRET="your-jwt-secret"
+CORS_ORIGIN="http://localhost:3000"
+💡 Características Adicionales (Opcional)
+Premium Features:
+
+Múltiples cuentas bancarias
+Exportar reportes en PDF
+Alertas por email/SMS
+API para desarrolladores
+Integración con bancos (Open Banking)
+
+Integraciones:
+
+Plaid para conexión directa con bancos
+SendGrid para emails
+Stripe para pagos (si es premium)
+Google Analytics para métricas
+
+Este prompt te dará una guía completa para desarrollar el proyecto paso a paso en Replit. ¿Te gustaría que profundice en algún aspecto específico o que cree algún archivo de configuración particular?
