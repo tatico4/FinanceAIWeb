@@ -1,5 +1,3 @@
-import * as pdfExtraction from 'pdf-extraction';
-
 interface RawTransaction {
   date: string;
   description: string;
@@ -16,8 +14,24 @@ export async function processCreditCardPDF(buffer: Buffer): Promise<RawTransacti
     console.log('\n=== CREDIT CARD STATEMENT PROCESSOR ===');
     console.log(`PDF buffer size: ${buffer.length} bytes`);
     
+    // Import pdf-extraction dynamically with proper error handling
+    let extract;
+    try {
+      const pdfExtraction = await import('pdf-extraction');
+      extract = pdfExtraction.extract || pdfExtraction.default?.extract || pdfExtraction.default;
+      console.log('pdf-extraction module loaded successfully');
+      console.log('Extract function type:', typeof extract);
+    } catch (importError) {
+      console.error('Failed to import pdf-extraction:', importError);
+      throw new Error('Error cargando el módulo PDF. Intenta con formato Excel o CSV.');
+    }
+    
+    if (!extract || typeof extract !== 'function') {
+      throw new Error('pdf-extraction module not properly loaded');
+    }
+    
     // Extract text from PDF
-    const data = await pdfExtraction.extract(buffer, {});
+    const data = await extract(buffer, {});
     let text: string;
     
     if (typeof data.text === 'string') {
