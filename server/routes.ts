@@ -40,15 +40,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // File upload and analysis endpoint
   app.post('/api/upload', upload.single('file'), async (req: MulterRequest, res: Response) => {
     try {
+      console.log('=== UPLOAD REQUEST RECEIVED ===');
+      
       if (!req.file) {
+        console.log('ERROR: No file in request');
         return res.status(400).json({ message: 'No file uploaded' });
       }
 
       const filePath = req.file.path;
       const fileName = req.file.originalname;
       const fileType = path.extname(fileName).toLowerCase();
+      const fileSize = req.file.size;
+
+      console.log('File details:');
+      console.log('- Original name:', fileName);
+      console.log('- File type:', fileType);
+      console.log('- File size:', fileSize, 'bytes');
+      console.log('- Temporary path:', filePath);
+      console.log('- File exists:', fs.existsSync(filePath));
+
+      // Validate file existence and readability
+      if (!fs.existsSync(filePath)) {
+        console.log('ERROR: File does not exist at path:', filePath);
+        return res.status(400).json({ message: 'Archivo no encontrado después de la subida' });
+      }
 
       try {
+        console.log('Starting file processing...');
         // Process the uploaded file
         const rawTransactions = await processFile(filePath, fileType);
         

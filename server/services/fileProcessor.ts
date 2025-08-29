@@ -13,15 +13,37 @@ export interface RawTransaction {
  * Process uploaded file and extract transaction data
  */
 export async function processFile(filePath: string, fileType: string): Promise<RawTransaction[]> {
-  const fileBuffer = fs.readFileSync(filePath);
+  console.log('=== PROCESSING FILE ===');
+  console.log('File path:', filePath);
+  console.log('File type:', fileType);
+  console.log('File exists:', fs.existsSync(filePath));
+  
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found at path: ${filePath}`);
+  }
+  
+  const stats = fs.statSync(filePath);
+  console.log('File size:', stats.size, 'bytes');
+  
+  let fileBuffer: Buffer;
+  try {
+    fileBuffer = fs.readFileSync(filePath);
+    console.log('File read successfully, buffer size:', fileBuffer.length);
+  } catch (readError) {
+    console.error('Error reading file:', readError);
+    throw new Error(`Error reading file: ${readError instanceof Error ? readError.message : 'Unknown error'}`);
+  }
   
   switch (fileType) {
     case '.pdf':
+      console.log('Processing as PDF...');
       return processPDF(fileBuffer);
     case '.xlsx':
     case '.xls':
+      console.log('Processing as Excel...');
       return processExcel(fileBuffer);
     case '.csv':
+      console.log('Processing as CSV...');
       return processCSV(fileBuffer);
     default:
       throw new Error(`Unsupported file type: ${fileType}`);
@@ -34,11 +56,46 @@ export async function processFile(filePath: string, fileType: string): Promise<R
  */
 async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
   try {
-    // Import pdf-parse dynamically for better compatibility
-    const pdfParse = await import('pdf-parse');
+    console.log('Starting PDF processing...');
+    console.log('PDF buffer size:', buffer.length, 'bytes');
     
-    // Extract text from PDF
-    const data = await pdfParse.default(buffer);
+    // Import pdf-parse with proper error handling
+    let pdfParse;
+    try {
+      const pdfModule = await import('pdf-parse');
+      pdfParse = pdfModule.default || pdfModule;
+      console.log('pdf-parse module loaded successfully');
+    } catch (importError) {
+      console.error('Failed to import pdf-parse:', importError);
+      throw new Error('Error cargando el módulo PDF. Intenta con formato Excel o CSV.');
+    }
+    
+    // Validate buffer
+    if (!buffer || buffer.length === 0) {
+      throw new Error('El archivo PDF está vacío o no se pudo leer correctamente.');
+    }
+    
+    if (buffer.length > 50 * 1024 * 1024) { // 50MB limit
+      throw new Error('El archivo PDF es demasiado grande. El límite es 50MB.');
+    }
+    
+    // Check if buffer starts with PDF header
+    const pdfHeader = buffer.slice(0, 5).toString();
+    if (!pdfHeader.startsWith('%PDF')) {
+      throw new Error('El archivo no es un PDF válido. Asegúrate de subir un archivo PDF real.');
+    }
+    
+    console.log('PDF validation passed, extracting text...');
+    
+    // Extract text from PDF with error handling
+    let data;
+    try {
+      data = await pdfParse(buffer);
+      console.log('PDF parsing successful');
+    } catch (parseError) {
+      console.error('PDF parsing failed:', parseError);
+      throw new Error('Error extrayendo texto del PDF. Puede estar encriptado o dañado.');
+    }
     const fullText = data.text;
     
     if (!fullText || fullText.trim().length === 0) {
