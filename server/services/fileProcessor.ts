@@ -157,25 +157,19 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     const lines = fullText.split('\n');
     const transactions: RawTransaction[] = [];
     
-    // Enhanced patterns for different bank statement formats
+    // Rigorous patterns - MUST have Date + Description + Amount on same line
     const patterns = [
-      // Pattern 1: DD/MM/YYYY Description Amount (Chilean/Latin American format)
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(.+?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/,
-      // Pattern 2: YYYY-MM-DD Description Amount (International format)
-      /(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s+(.+?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/,
-      // Pattern 3: MM/DD/YYYY Description Amount (US format)
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(.+?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/,
-      // Pattern 4: Amount Description Date (some formats)
-      /([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s+(.+?)\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s*$/,
-      // Pattern 5: More flexible pattern for complex layouts
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(.{5,50}?)\s*([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/,
-      // Pattern 6: Date and amount on same line with description spread across multiple tokens
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+([A-Za-z].*?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/,
+      // Pattern 1: DD/MM/YYYY Description Amount (strict validation)
+      /^(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+([A-Za-záéíóúñÑ][A-Za-záéíóúñÑ\s\.\-]{4,50}?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)$/,
+      // Pattern 2: DD/MM/YYYY Description Amount with more spacing
+      /^(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+([A-Za-záéíóúñÑ][A-Za-záéíóúñÑ\s\.\-]{4,50}?)\s{2,}([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)$/,
+      // Pattern 3: YYYY-MM-DD Description Amount (strict)
+      /^(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s+([A-Za-záéíóúñÑ][A-Za-záéíóúñÑ\s\.\-]{4,50}?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)$/,
     ];
     
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (trimmedLine.length < 10) continue; // Skip short lines
+      if (trimmedLine.length < 20) continue; // Skip short lines - must be substantial
       
       for (let i = 0; i < patterns.length; i++) {
         const pattern = patterns[i];
@@ -183,22 +177,21 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
         
         if (match) {
           try {
-            let dateStr: string, description: string, amountStr: string;
+            // Always Date Description Amount format for these strict patterns
+            const [, dateStr, description, amountStr] = match;
             
-            if (i === 3) {
-              // Amount Description Date format
-              [, amountStr, description, dateStr] = match;
-            } else {
-              // Date Description Amount format
-              [, dateStr, description, amountStr] = match;
-            }
+            console.log(`Potential transaction found: "${trimmedLine}"`);
+            console.log(`Parsed - Date: "${dateStr}", Description: "${description}", Amount: "${amountStr}"`);
             
-            // Clean and parse date
+            // Rigorous date validation
             const cleanDateStr = dateStr.replace(/[^\d\/\-]/g, '');
             const date = parseDate(cleanDateStr);
-            if (!date || isNaN(date.getTime())) continue;
+            if (!date || isNaN(date.getTime())) {
+              console.log(`Invalid date: ${dateStr}`);
+              continue;
+            }
             
-            // Clean and parse amount
+            // Rigorous amount validation - must be a proper number
             const cleanAmountStr = amountStr
               .replace(/\$|\s/g, '')
               .replace(/,/g, '.')
@@ -206,15 +199,27 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
               .trim();
             
             let amount = parseFloat(cleanAmountStr);
-            if (isNaN(amount) || amount === 0) continue;
+            if (isNaN(amount) || amount === 0) {
+              console.log(`Invalid amount: ${amountStr} -> ${cleanAmountStr}`);
+              continue;
+            }
             
-            // Clean description
-            description = description
+            // Rigorous description validation
+            const cleanDescription = description
               .replace(/\s+/g, ' ')
-              .replace(/[^\w\s\-\.\,áéíóúñ]/gi, '') // Keep Spanish characters
               .trim();
             
-            if (description.length < 3) continue;
+            // Description must be meaningful (at least 5 characters, contain letters)
+            if (cleanDescription.length < 5 || !/[A-Za-záéíóúñÑ]/.test(cleanDescription)) {
+              console.log(`Invalid description: "${cleanDescription}"`);
+              continue;
+            }
+            
+            // Additional validation: description cannot be just numbers
+            if (/^\d+(\.\d+)?$/.test(cleanDescription.replace(/\s/g, ''))) {
+              console.log(`Description is just numbers: "${cleanDescription}"`);
+              continue;
+            }
             
             // Determine transaction type based on keywords and amount context
             const expenseKeywords = [
@@ -249,10 +254,11 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
             
             transactions.push({
               date: date.toISOString(),
-              description: description,
+              description: cleanDescription,
               amount: amount,
             });
             
+            console.log(`✓ Valid transaction added: ${cleanDescription} - ${amount}`);
             break; // Found a match, move to next line
           } catch (e) {
             continue;

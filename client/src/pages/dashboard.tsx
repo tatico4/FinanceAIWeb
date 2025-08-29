@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +10,14 @@ import PieChart from "@/components/charts/pie-chart";
 import LineChart from "@/components/charts/line-chart";
 import Recommendations from "@/components/recommendations";
 import MetricsCard from "@/components/ui/metrics-card";
-import { ChartLine, TrendingUp, TrendingDown, PiggyBank, Percent, ArrowLeft, FileText } from "lucide-react";
+import { ChartLine, TrendingDown, TrendingUp, ArrowLeft, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import type { AnalysisResult, Transaction } from "@shared/schema";
 
 export default function Dashboard() {
   const [match, params] = useRoute("/dashboard/:id");
   const analysisId = params?.id;
+  const [currentPage, setCurrentPage] = useState(1);
+  const transactionsPerPage = 20;
 
   const { data: analysis, isLoading, error } = useQuery<AnalysisResult>({
     queryKey: ['/api/analysis', analysisId],
@@ -71,14 +74,37 @@ export default function Dashboard() {
   const categories = analysis.categories as any[];
   const recommendations = analysis.recommendations as any[];
 
-  const recentTransactions = transactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 10);
+  // Pagination for transactions
+  const sortedTransactions = transactions
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  const totalPages = Math.ceil(sortedTransactions.length / transactionsPerPage);
+  const startIndex = (currentPage - 1) * transactionsPerPage;
+  const endIndex = startIndex + transactionsPerPage;
+  const paginatedTransactions = sortedTransactions.slice(startIndex, endIndex);
 
-  // Calculate additional metrics
-  const averageTransactionAmount = analysis.averageTransactionAmount || 0;
-  const dateRange = analysis.dateRange;
-  const transactionFrequency = analysis.transactionFrequency || {};
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Calculate additional metrics from transactions
+  const expenseTransactions = transactions.filter(t => t.type === 'expense');
+  const averageTransactionAmount = expenseTransactions.length > 0 ? 
+    (analysis.totalExpenses || 0) / expenseTransactions.length : 0;
+  
+  // Calculate date range from transactions
+  const dates = transactions.map(t => new Date(t.date)).sort((a, b) => a.getTime() - b.getTime());
+  const dateRange = dates.length > 0 ? {
+    start: dates[0].toISOString(),
+    end: dates[dates.length - 1].toISOString()
+  } : null;
+  
+  // Calculate transaction frequency by category
+  const transactionFrequency: Record<string, number> = {};
+  transactions.forEach(t => {
+    const category = t.category || 'Otros';
+    transactionFrequency[category] = (transactionFrequency[category] || 0) + 1;
+  });
   
   // Get period information
   const periodInfo = dateRange ? {
@@ -177,47 +203,38 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Financial Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MetricsCard
-            title="Ingresos Totales"
-            value={`$${analysis.totalIncome?.toLocaleString() || '0'}`}
-            icon={TrendingUp}
-            trend="+8.2%"
-            trendDirection="up"
-            description="Este período"
-            color="accent"
-            data-testid="card-total-income"
-          />
+        {/* Financial Metrics Cards - Solo Gastos */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <MetricsCard
             title="Gastos Totales"
             value={`$${analysis.totalExpenses?.toLocaleString() || '0'}`}
             icon={TrendingDown}
-            trend="-3.1%"
-            trendDirection="down"
-            description="Este período"
+            trend={`${transactions.filter(t => t.type === 'expense').length} transacciones`}
+            trendDirection="neutral"
+            description="Total procesado"
             color="destructive"
             data-testid="card-total-expenses"
           />
           <MetricsCard
-            title="Ahorros Netos"
-            value={`$${((analysis.totalIncome || 0) - (analysis.totalExpenses || 0)).toLocaleString()}`}
-            icon={PiggyBank}
-            trend="+15.7%"
-            trendDirection="up"
-            description="Este período"
+            title="Promedio por Gasto"
+            value={`$${transactions.filter(t => t.type === 'expense').length > 0 ? 
+              Math.round((analysis.totalExpenses || 0) / transactions.filter(t => t.type === 'expense').length).toLocaleString() : '0'}`}
+            icon={ChartLine}
+            trend={`${Object.keys(transactionFrequency).length} categorías`}
+            trendDirection="neutral"
+            description="Gasto promedio"
             color="primary"
-            data-testid="card-net-savings"
+            data-testid="card-average-expense"
           />
           <MetricsCard
-            title="Tasa de Ahorro"
-            value={`${analysis.savingsRate?.toFixed(1) || '0'}%`}
-            icon={Percent}
-            trend="Meta: 20%"
-            trendDirection={analysis.savingsRate! >= 20 ? "up" : "neutral"}
-            description={analysis.savingsRate! >= 20 ? "Sobre la meta" : "Bajo la meta"}
-            color="chart-3"
-            data-testid="card-savings-rate"
+            title="Período Analizado"
+            value={dateRange ? `${Math.ceil((new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime()) / (1000 * 60 * 60 * 24))} días` : 'N/A'}
+            icon={FileText}
+            trend={dateRange ? `${new Date(dateRange.start).toLocaleDateString()} - ${new Date(dateRange.end).toLocaleDateString()}` : 'Sin datos'}
+            trendDirection="neutral"
+            description="Rango de fechas"
+            color="accent"
+            data-testid="card-period"
           />
         </div>
 
@@ -317,10 +334,15 @@ export default function Dashboard() {
           <Recommendations recommendations={recommendations} />
         </div>
 
-        {/* Transactions Table */}
+        {/* Transactions Table with Pagination */}
         <Card className="glassmorphism bg-card/80 border border-border">
           <CardHeader>
-            <CardTitle>Transacciones Recientes</CardTitle>
+            <CardTitle className="flex justify-between items-center">
+              <span>Todas las Transacciones</span>
+              <span className="text-sm text-muted-foreground">
+                {sortedTransactions.length} transacciones encontradas
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -334,7 +356,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentTransactions.map((transaction, index) => (
+                  {paginatedTransactions.map((transaction: Transaction, index: number) => (
                     <tr key={transaction.id || index} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="p-4 text-sm" data-testid={`text-date-${index}`}>
                         {new Date(transaction.date).toLocaleDateString()}
@@ -364,6 +386,58 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1}-{Math.min(endIndex, sortedTransactions.length)} de {sortedTransactions.length} transacciones
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === 1 || 
+                      page === totalPages || 
+                      Math.abs(page - currentPage) <= 2
+                    )
+                    .map((page, index, array) => (
+                      <span key={page}>
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                        >
+                          {page}
+                        </Button>
+                      </span>
+                    ))}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
