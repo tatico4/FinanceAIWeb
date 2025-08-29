@@ -56,17 +56,17 @@ export async function processFile(filePath: string, fileType: string): Promise<R
  */
 async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
   try {
-    console.log('Starting PDF processing...');
+    console.log('Starting PDF processing with pdf-extraction...');
     console.log('PDF buffer size:', buffer.length, 'bytes');
     
-    // Import pdf-parse with proper error handling
-    let pdfParse;
+    // Import pdf-extraction with proper error handling
+    let extract;
     try {
-      const pdfModule = await import('pdf-parse');
-      pdfParse = pdfModule.default || pdfModule;
-      console.log('pdf-parse module loaded successfully');
+      const pdfExtraction = await import('pdf-extraction');
+      extract = pdfExtraction.extract;
+      console.log('pdf-extraction module loaded successfully');
     } catch (importError) {
-      console.error('Failed to import pdf-parse:', importError);
+      console.error('Failed to import pdf-extraction:', importError);
       throw new Error('Error cargando el módulo PDF. Intenta con formato Excel o CSV.');
     }
     
@@ -87,16 +87,34 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     
     console.log('PDF validation passed, extracting text...');
     
-    // Extract text from PDF with error handling
-    let data;
+    // Extract text from PDF
+    let extractedData;
     try {
-      data = await pdfParse(buffer);
-      console.log('PDF parsing successful');
-    } catch (parseError) {
-      console.error('PDF parsing failed:', parseError);
-      throw new Error('Error extrayendo texto del PDF. Puede estar encriptado o dañado.');
+      extractedData = await extract(buffer, {
+        normalizeWhitespace: false,
+        disableCombineTextItems: false
+      });
+      console.log('PDF text extraction successful');
+      console.log('Pages found:', extractedData.pages.length);
+    } catch (extractError) {
+      console.error('PDF extraction failed:', extractError);
+      throw new Error('Error extrayendo texto del PDF. El archivo puede estar encriptado, dañado o ser una imagen escaneada.');
     }
-    const fullText = data.text;
+    
+    // Combine text from all pages
+    let fullText = '';
+    if (extractedData.pages && extractedData.pages.length > 0) {
+      for (let i = 0; i < extractedData.pages.length; i++) {
+        const page = extractedData.pages[i];
+        console.log(`Processing page ${i + 1}, content length: ${page.content.length}`);
+        fullText += page.content + '\n';
+      }
+    } else {
+      console.log('No pages found, using combined text');
+      fullText = extractedData.text || '';
+    }
+    
+    console.log('Total extracted text length:', fullText.length);
     
     if (!fullText || fullText.trim().length === 0) {
       throw new Error('El PDF no contiene texto extraíble. Asegúrate de que no sea una imagen escaneada.');
