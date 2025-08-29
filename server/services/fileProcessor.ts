@@ -63,8 +63,9 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     let extract;
     try {
       const pdfExtraction = await import('pdf-extraction');
-      extract = pdfExtraction.extract;
+      extract = pdfExtraction.default || pdfExtraction;
       console.log('pdf-extraction module loaded successfully');
+      console.log('Extract function type:', typeof extract);
     } catch (importError) {
       console.error('Failed to import pdf-extraction:', importError);
       throw new Error('Error cargando el módulo PDF. Intenta con formato Excel o CSV.');
