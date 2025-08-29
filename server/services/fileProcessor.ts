@@ -34,38 +34,26 @@ export async function processFile(filePath: string, fileType: string): Promise<R
  */
 async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
   try {
-    // Import pdfjs-dist dynamically to avoid issues
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.js');
+    // Import pdf-parse dynamically for better compatibility
+    const pdfParse = await import('pdf-parse');
     
-    // Load the PDF
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      useSystemFonts: true,
-    });
+    // Extract text from PDF
+    const data = await pdfParse.default(buffer);
+    const fullText = data.text;
     
-    const pdf = await loadingTask.promise;
-    const transactions: RawTransaction[] = [];
-    
-    // Extract text from all pages
-    let fullText = '';
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      
-      // Combine text items
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      
-      fullText += pageText + '\n';
+    if (!fullText || fullText.trim().length === 0) {
+      throw new Error('El PDF no contiene texto extraíble. Asegúrate de que no sea una imagen escaneada.');
     }
+    
+    console.log('PDF text extracted, length:', fullText.length);
     
     // Parse transactions from extracted text
     const lines = fullText.split('\n');
+    const transactions: RawTransaction[] = [];
     
     // Enhanced patterns for different bank statement formats
     const patterns = [
-      // Pattern 1: DD/MM/YYYY Description Amount (Chilean format)
+      // Pattern 1: DD/MM/YYYY Description Amount (Chilean/Latin American format)
       /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(.+?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/,
       // Pattern 2: YYYY-MM-DD Description Amount (International format)
       /(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s+(.+?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*$/,
@@ -74,12 +62,14 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
       // Pattern 4: Amount Description Date (some formats)
       /([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s+(.+?)\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s*$/,
       // Pattern 5: More flexible pattern for complex layouts
-      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(.{5,50}?)\s*([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:[-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)?/,
+      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(.{5,50}?)\s*([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/,
+      // Pattern 6: Date and amount on same line with description spread across multiple tokens
+      /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+([A-Za-z].*?)\s+([-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/,
     ];
     
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (trimmedLine.length < 15) continue; // Skip short lines
+      if (trimmedLine.length < 10) continue; // Skip short lines
       
       for (let i = 0; i < patterns.length; i++) {
         const pattern = patterns[i];
@@ -106,7 +96,7 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
             const cleanAmountStr = amountStr
               .replace(/\$|\s/g, '')
               .replace(/,/g, '.')
-              .replace(/\.(?=\d{3})/g, '') // Remove thousand separators
+              .replace(/\.(?=\d{3})/g, '') // Remove thousand separators but keep decimal
               .trim();
             
             let amount = parseFloat(cleanAmountStr);
@@ -115,23 +105,24 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
             // Clean description
             description = description
               .replace(/\s+/g, ' ')
-              .replace(/[^\w\s\-\.\,]/g, '')
+              .replace(/[^\w\s\-\.\,áéíóúñ]/gi, '') // Keep Spanish characters
               .trim();
             
             if (description.length < 3) continue;
             
             // Determine transaction type based on keywords and amount context
             const expenseKeywords = [
-              'compra', 'pago', 'retiro', 'comision', 'cargo', 'fee',
-              'purchase', 'payment', 'withdrawal', 'charge', 'debit',
-              'supermercado', 'restaurant', 'netflix', 'uber', 'taxi',
-              'gasolina', 'combustible', 'farmacia', 'medico', 'clinica'
+              'compra', 'pago', 'retiro', 'comision', 'cargo', 'fee', 'débito',
+              'purchase', 'payment', 'withdrawal', 'charge', 'debit', 'gasto',
+              'supermercado', 'restaurant', 'restaurante', 'netflix', 'uber', 'taxi',
+              'gasolina', 'combustible', 'farmacia', 'medico', 'clinica', 'tienda',
+              'mall', 'centro', 'comercial', 'servipag', 'cajero', 'atm'
             ];
             
             const incomeKeywords = [
-              'deposito', 'salario', 'sueldo', 'transferencia', 'abono',
-              'deposit', 'salary', 'transfer', 'credit', 'income',
-              'dividend', 'refund', 'reembolso', 'bonus'
+              'deposito', 'salario', 'sueldo', 'transferencia', 'abono', 'crédito',
+              'deposit', 'salary', 'transfer', 'credit', 'income', 'ingreso',
+              'dividend', 'refund', 'reembolso', 'bonus', 'freelance', 'honorario'
             ];
             
             // Check if it's clearly an expense or income
@@ -143,7 +134,7 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
               description.toLowerCase().includes(keyword)
             );
             
-            // Apply sign logic
+            // Apply sign logic - most bank statements show expenses as negative
             if (amount > 0 && isExpense && !isIncome) {
               amount = -amount;
             } else if (amount < 0 && isIncome) {
@@ -170,12 +161,12 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
       
       for (const line of lines) {
         const trimmedLine = line.trim();
-        if (trimmedLine.length < 20) continue;
+        if (trimmedLine.length < 15) continue;
         
         // Look for date patterns
         const dateMatches = trimmedLine.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/g);
-        // Look for amount patterns
-        const amountMatches = trimmedLine.match(/[-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})/g);
+        // Look for amount patterns - be more flexible
+        const amountMatches = trimmedLine.match(/[-+]?\$?\s*\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?/g);
         
         if (dateMatches && amountMatches && dateMatches.length > 0 && amountMatches.length > 0) {
           try {
@@ -185,20 +176,31 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
             const date = parseDate(dateStr);
             if (!date || isNaN(date.getTime())) continue;
             
-            const amount = parseFloat(amountStr.replace(/[$,\s]/g, '').replace(',', '.'));
+            // Parse amount more carefully
+            let cleanAmount = amountStr.replace(/[$\s]/g, '');
+            // Handle both comma and dot as decimal separators
+            if (cleanAmount.includes(',') && cleanAmount.includes('.')) {
+              // Assume comma is thousands separator and dot is decimal
+              cleanAmount = cleanAmount.replace(/,/g, '');
+            } else if (cleanAmount.includes(',') && !cleanAmount.includes('.')) {
+              // Assume comma is decimal separator (European style)
+              cleanAmount = cleanAmount.replace(',', '.');
+            }
+            
+            const amount = parseFloat(cleanAmount);
             if (isNaN(amount) || amount === 0) continue;
             
-            // Extract description
+            // Extract description by removing date and amount
             let description = trimmedLine
-              .replace(dateMatches[0], '')
-              .replace(amountMatches[amountMatches.length - 1], '')
+              .replace(dateStr, '')
+              .replace(amountStr, '')
               .replace(/\s+/g, ' ')
               .trim();
             
-            if (description.length > 3) {
+            if (description.length > 3 && description.length < 100) {
               transactions.push({
                 date: date.toISOString(),
-                description: description.substring(0, 100), // Limit description length
+                description: description,
                 amount: amount,
               });
             }
@@ -210,7 +212,7 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     }
     
     if (transactions.length === 0) {
-      throw new Error('No se pudieron encontrar transacciones en el PDF. Verifique que el archivo sea un estado de cuenta bancario válido con transacciones claramente formateadas.');
+      throw new Error('No se pudieron encontrar transacciones en el PDF. Verifique que el archivo sea un estado de cuenta bancario válido con transacciones claramente formateadas. El PDF debe contener fechas, descripciones y montos en formato de tabla.');
     }
     
     // Remove duplicates based on date, description, and amount
@@ -224,7 +226,7 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     
   } catch (error) {
     console.error('PDF processing error:', error);
-    throw new Error(`Error procesando PDF: ${error instanceof Error ? error.message : 'Error desconocido'}. Asegúrate de que el archivo sea un estado de cuenta bancario válido.`);
+    throw new Error(`Error procesando PDF: ${error instanceof Error ? error.message : 'Error desconocido'}. Asegúrate de que el archivo sea un estado de cuenta bancario válido con texto extraíble.`);
   }
 }
 
