@@ -118,28 +118,45 @@ function isNonTransactionLine(line: string): boolean {
 
 /**
  * Parse credit card transaction from line
- * Expected format: Ciudad DD/MM/YYYY Descripción Código Monto1 Monto2 VencimientoFinal MontoFinal
- * Example: "Las Condes 19/07/2025 Mercadopago *sociedad A2 89.990 89.990 01/01 sep-2025 89.990"
+ * Expected format: CiudadDD/MM/AAAADescripción TCodigoMonto1Monto2DD/MMmes-AAAAMontoFinal
+ * Example: "Las Condes17/08/2025Mercadopago *lavuelta T7.1507.15001/01sep-20257.150"
  */
 function parseCreditCardTransaction(line: string): RawTransaction | null {
   try {
-    // Credit card pattern for Chilean statements
-    const pattern = /^([A-Za-z\s]+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+?)\s+([A-Z]\d+)\s+([\d.,]+)\s+([\d.,]+)\s+\d{2}\/\d{2}\s+\w+-\d{4}\s+([\d.,]+)$/;
+    // Updated pattern for Chilean statements without spaces
+    // Ciudad followed by date, then description, then T + amounts, then final date and amount
+    const pattern = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
     
     const match = line.match(pattern);
     
     if (!match) {
       console.log('❌ Line does not match credit card pattern');
+      
+      // Try a simpler pattern for debugging
+      const simplePattern = /(\d{1,2}\/\d{1,2}\/\d{4})/;
+      const dateMatch = line.match(simplePattern);
+      if (dateMatch) {
+        console.log(`🔍 Found date ${dateMatch[1]} but line doesn't match full pattern`);
+        // Try to extract parts manually
+        const dateStr = dateMatch[1];
+        const beforeDate = line.substring(0, line.indexOf(dateStr));
+        const afterDate = line.substring(line.indexOf(dateStr) + dateStr.length);
+        console.log(`   Before date: "${beforeDate}"`);
+        console.log(`   After date: "${afterDate}"`);
+      }
+      
       return null;
     }
     
-    const [, city, dateStr, rawDescription, code, amount1, amount2, finalAmount] = match;
+    const [, city, dateStr, rawDescription, tCode, amount1, amount2, dateEnd, monthYear, finalAmount] = match;
     
     console.log(`Parsing transaction:`);
     console.log(`  City: "${city}"`);
     console.log(`  Date: "${dateStr}"`);
     console.log(`  Description: "${rawDescription}"`);
-    console.log(`  Code: "${code}"`);
+    console.log(`  T Code: "${tCode}"`);
+    console.log(`  Amount1: "${amount1}"`);
+    console.log(`  Amount2: "${amount2}"`);
     console.log(`  Final Amount: "${finalAmount}"`);
     
     // Parse date (DD/MM/YYYY)
