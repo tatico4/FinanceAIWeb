@@ -96,26 +96,56 @@ async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
         disableCombineTextItems: false
       });
       console.log('PDF text extraction successful');
-      console.log('Pages found:', extractedData.pages.length);
+      console.log('Extracted data type:', typeof extractedData);
+      console.log('Extracted data keys:', Object.keys(extractedData || {}));
+      console.log('Extracted data structure:', JSON.stringify(extractedData, null, 2).substring(0, 500));
     } catch (extractError) {
       console.error('PDF extraction failed:', extractError);
       throw new Error('Error extrayendo texto del PDF. El archivo puede estar encriptado, dañado o ser una imagen escaneada.');
     }
     
-    // Combine text from all pages
+    // Combine text from all pages - handle different possible structures
     let fullText = '';
-    if (extractedData.pages && extractedData.pages.length > 0) {
-      for (let i = 0; i < extractedData.pages.length; i++) {
-        const page = extractedData.pages[i];
-        console.log(`Processing page ${i + 1}, content length: ${page.content.length}`);
-        fullText += page.content + '\n';
-      }
-    } else {
-      console.log('No pages found, using combined text');
-      fullText = extractedData.text || '';
-    }
     
-    console.log('Total extracted text length:', fullText.length);
+    try {
+      if (typeof extractedData === 'string') {
+        // If it's just a string
+        fullText = extractedData;
+        console.log('Got string directly from extraction');
+      } else if (extractedData && extractedData.pages && Array.isArray(extractedData.pages)) {
+        // If it has pages array
+        console.log('Processing pages array, length:', extractedData.pages.length);
+        for (let i = 0; i < extractedData.pages.length; i++) {
+          const page = extractedData.pages[i];
+          if (page && page.content) {
+            console.log(`Processing page ${i + 1}, content length: ${page.content.length}`);
+            fullText += page.content + '\n';
+          } else if (typeof page === 'string') {
+            console.log(`Processing page ${i + 1} as string`);
+            fullText += page + '\n';
+          }
+        }
+      } else if (extractedData && extractedData.text) {
+        // If it has text property
+        fullText = extractedData.text;
+        console.log('Got text from .text property');
+      } else if (extractedData && typeof extractedData === 'object') {
+        // Try to find text in any property
+        const possibleTextKeys = ['text', 'content', 'data', 'result'];
+        for (const key of possibleTextKeys) {
+          if (extractedData[key] && typeof extractedData[key] === 'string') {
+            fullText = extractedData[key];
+            console.log(`Got text from .${key} property`);
+            break;
+          }
+        }
+      }
+      
+      console.log('Total extracted text length:', fullText.length);
+    } catch (structureError) {
+      console.error('Error processing extracted data structure:', structureError);
+      fullText = '';
+    }
     
     if (!fullText || fullText.trim().length === 0) {
       throw new Error('El PDF no contiene texto extraíble. Asegúrate de que no sea una imagen escaneada.');
