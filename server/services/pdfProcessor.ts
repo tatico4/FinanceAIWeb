@@ -49,6 +49,16 @@ export async function processCreditCardPDF(buffer: Buffer): Promise<RawTransacti
     
     console.log(`Processing ${lines.length} lines`);
     
+    // First, let's analyze some sample lines to understand the format
+    console.log('\n=== SAMPLE LINES ANALYSIS ===');
+    for (let i = 0; i < Math.min(lines.length, 50); i++) {
+      const line = lines[i].trim();
+      if (line.length > 20 && /\d{1,2}\/\d{1,2}\/\d{4}/.test(line)) {
+        console.log(`Sample line ${i + 1}: "${line}"`);
+      }
+    }
+    console.log('=== END SAMPLE ANALYSIS ===\n');
+    
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex].trim();
       
@@ -118,45 +128,79 @@ function isNonTransactionLine(line: string): boolean {
 
 /**
  * Parse credit card transaction from line
- * Expected format: CiudadDD/MM/AAAADescripción TCodigoMonto1Monto2DD/MMmes-AAAAMontoFinal
- * Example: "Las Condes17/08/2025Mercadopago *lavuelta T7.1507.15001/01sep-20257.150"
+ * Multiple patterns to handle different formats found in the PDF
  */
 function parseCreditCardTransaction(line: string): RawTransaction | null {
   try {
-    // Updated pattern for Chilean statements without spaces
-    // Ciudad followed by date, then description, then T + amounts, then final date and amount
-    const pattern = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
+    // Pattern 1: Standard format with spaces
+    // "Las Condes 19/07/2025 Mercadopago *sociedad A2 89.990 89.990 01/01 sep-2025 89.990"
+    const pattern1 = /^([A-Za-z\s]+?)\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+(.+?)\s+([A-Z]\d+)\s+([\d.,]+)\s+([\d.,]+)\s+\d{2}\/\d{2}\s+\w+-\d{4}\s+([\d.,]+)$/;
     
-    const match = line.match(pattern);
+    // Pattern 2: Condensed format without spaces
+    // "Las Condes17/08/2025Mercadopago *lavuelta T7.1507.15001/01sep-20257.150"
+    const pattern2 = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s?([T][A-Z]?\d*)([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
+    
+    // Pattern 3: Even more flexible - just look for city, date, description with amounts
+    const pattern3 = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)([\d.,]{3,})([\d.,]{3,}).*?([\d.,]{3,})$/;
+    
+    const patterns = [pattern1, pattern2, pattern3];
+    
+    let match = null;
+    let patternUsed = 0;
+    
+    // Try each pattern
+    for (let i = 0; i < patterns.length; i++) {
+      match = line.match(patterns[i]);
+      if (match) {
+        patternUsed = i + 1;
+        console.log(`✅ Matched with pattern ${patternUsed}`);
+        break;
+      }
+    }
     
     if (!match) {
-      console.log('❌ Line does not match credit card pattern');
+      console.log('❌ Line does not match any credit card pattern');
       
-      // Try a simpler pattern for debugging
-      const simplePattern = /(\d{1,2}\/\d{1,2}\/\d{4})/;
-      const dateMatch = line.match(simplePattern);
+      // Enhanced debugging for lines with dates
+      const datePattern = /(\d{1,2}\/\d{1,2}\/\d{4})/;
+      const dateMatch = line.match(datePattern);
       if (dateMatch) {
-        console.log(`🔍 Found date ${dateMatch[1]} but line doesn't match full pattern`);
-        // Try to extract parts manually
+        console.log(`🔍 Found date ${dateMatch[1]} but line doesn't match any pattern`);
         const dateStr = dateMatch[1];
         const beforeDate = line.substring(0, line.indexOf(dateStr));
         const afterDate = line.substring(line.indexOf(dateStr) + dateStr.length);
         console.log(`   Before date: "${beforeDate}"`);
         console.log(`   After date: "${afterDate}"`);
+        console.log(`   Full line length: ${line.length}`);
+        
+        // Try to manually extract transaction data for very loose matching
+        if (beforeDate.length > 2 && afterDate.length > 10) {
+          const numbers = afterDate.match(/[\d.,]+/g);
+          if (numbers && numbers.length >= 2) {
+            console.log(`   Found ${numbers.length} numbers: ${numbers.join(', ')}`);
+            // Could potentially create a transaction here with loose parsing
+          }
+        }
       }
       
       return null;
     }
     
-    const [, city, dateStr, rawDescription, tCode, amount1, amount2, dateEnd, monthYear, finalAmount] = match;
+    // Handle different match groups based on pattern used
+    let city, dateStr, rawDescription, finalAmount;
     
-    console.log(`Parsing transaction:`);
+    if (patternUsed === 1) {
+      [, city, dateStr, rawDescription, , , , finalAmount] = match;
+    } else if (patternUsed === 2) {
+      [, city, dateStr, rawDescription, , , , , , finalAmount] = match;
+    } else if (patternUsed === 3) {
+      [, city, dateStr, rawDescription, , , finalAmount] = match;
+    }
+    
+    console.log(`Parsing transaction with pattern ${patternUsed}:`);
     console.log(`  City: "${city}"`);
     console.log(`  Date: "${dateStr}"`);
     console.log(`  Description: "${rawDescription}"`);
-    console.log(`  T Code: "${tCode}"`);
-    console.log(`  Amount1: "${amount1}"`);
-    console.log(`  Amount2: "${amount2}"`);
     console.log(`  Final Amount: "${finalAmount}"`);
     
     // Parse date (DD/MM/YYYY)
