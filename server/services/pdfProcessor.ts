@@ -140,10 +140,14 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
     // "Las Condes17/08/2025Mercadopago *lavuelta T7.1507.15001/01sep-20257.150"
     const pattern2 = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s?([T][A-Z]?\d*)([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
     
-    // Pattern 3: Even more flexible - just look for city, date, description with amounts
-    const pattern3 = /^([A-Za-z\s]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)([\d.,]{3,})([\d.,]{3,}).*?([\d.,]{3,})$/;
+    // Pattern 3: S/I format (Sin Identificar)
+    // "S/I27/07/2025Compra  falabella plaza vespucio T37.90537.90501/01sep-202537.905"
+    const pattern3 = /^(S\/I)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
     
-    const patterns = [pattern1, pattern2, pattern3];
+    // Pattern 4: Very flexible - city or S/I, date, description with final amount
+    const pattern4 = /^([A-Za-z\s\/]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)([\d.,]{3,})$/;
+    
+    const patterns = [pattern1, pattern2, pattern3, pattern4];
     
     let match = null;
     let patternUsed = 0;
@@ -190,11 +194,26 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
     let city, dateStr, rawDescription, finalAmount;
     
     if (patternUsed === 1) {
+      // Standard format with spaces
       [, city, dateStr, rawDescription, , , , finalAmount] = match;
     } else if (patternUsed === 2) {
+      // Condensed format without spaces
       [, city, dateStr, rawDescription, , , , , , finalAmount] = match;
     } else if (patternUsed === 3) {
-      [, city, dateStr, rawDescription, , , finalAmount] = match;
+      // S/I format
+      [, city, dateStr, rawDescription, , , , , , finalAmount] = match;
+    } else if (patternUsed === 4) {
+      // Very flexible format
+      [, city, dateStr, rawDescription, finalAmount] = match;
+      
+      // For pattern 4, we need to extract the final amount from multiple numbers
+      const numbers = rawDescription.match(/[\d.,]+/g);
+      if (numbers && numbers.length > 0) {
+        // Take the last meaningful number as the final amount
+        finalAmount = numbers[numbers.length - 1];
+        // Clean description by removing all numbers
+        rawDescription = rawDescription.replace(/[\d.,]+/g, '').trim();
+      }
     }
     
     console.log(`Parsing transaction with pattern ${patternUsed}:`);
