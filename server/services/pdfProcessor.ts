@@ -107,7 +107,7 @@ function isNonTransactionLine(line: string): boolean {
     /CLIENTE ELITE/i,
     /FRANCISCO BRAVO/i,
     /LIRA \d+/i,
-    /SANTIAGO/i,
+    // REMOVED /SANTIAGO/i - this was incorrectly filtering Santiago transactions
     /Nombre del Titular/i,
     /Cupon de Pago/i,
     /N° de Tarjeta/i,
@@ -120,7 +120,12 @@ function isNonTransactionLine(line: string): boolean {
     // Skip lines that are just numbers or dates without merchant info
     /^\d{1,2}\/\d{1,2}\/\d{4}\s*$/, 
     /^\d+\.\d+\s*$/,
-    /^\d+\s*$/
+    /^\d+\s*$/,
+    // Skip obvious header/footer text
+    /Infórmese sobre las entidades/i,
+    /www\.sbif\.cl/i,
+    /Dudas sobre tu Estado/i,
+    /bancofalabella\.cl/i
   ];
   
   return nonTransactionPatterns.some(pattern => pattern.test(line));
@@ -144,10 +149,18 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
     // "S/I27/07/2025Compra  falabella plaza vespucio T37.90537.90501/01sep-202537.905"
     const pattern3 = /^(S\/I)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])([\d.,]+)([\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})([\d.,]+)$/;
     
-    // Pattern 4: Very flexible - city or S/I, date, description with final amount
-    const pattern4 = /^([A-Za-z\s\/]+?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)([\d.,]{3,})$/;
+    // Pattern 4: No city, starts with date
+    // "27/07/2025Pago automatico  seg auto subaru T113.678113.67801/01sep-2025113.678"
+    const pattern4 = /^(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])(-?[\d.,]+)(-?[\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})(-?[\d.,]+)$/;
     
-    const patterns = [pattern1, pattern2, pattern3, pattern4];
+    // Pattern 5: Reversa (anulación) - no city, starts with date, includes negative amounts
+    // "06/08/2025Anulacion pago automatico  abono T17.040-17.04001/01sep-2025-17.040"
+    const pattern5 = /^(\d{1,2}\/\d{1,2}\/\d{4})(.+?)\s([T])(-?[\d.,]+)(-?[\d.,]+)(\d{2}\/\d{2})(\w+-\d{4})(-?[\d.,]+)$/;
+    
+    // Pattern 6: Very flexible fallback
+    const pattern6 = /^([A-Za-z\s\/]*?)(\d{1,2}\/\d{1,2}\/\d{4})(.+?)([-]?[\d.,]{3,})$/;
+    
+    const patterns = [pattern1, pattern2, pattern3, pattern4, pattern5, pattern6];
     
     let match = null;
     let patternUsed = 0;
@@ -202,17 +215,26 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
     } else if (patternUsed === 3) {
       // S/I format
       [, city, dateStr, rawDescription, , , , , , finalAmount] = match;
-    } else if (patternUsed === 4) {
+    } else if (patternUsed === 4 || patternUsed === 5) {
+      // No city format or reversa format
+      [, dateStr, rawDescription, , , , , , finalAmount] = match;
+      city = "Sin Identificar"; // Default city when not provided
+    } else if (patternUsed === 6) {
       // Very flexible format
       [, city, dateStr, rawDescription, finalAmount] = match;
       
-      // For pattern 4, we need to extract the final amount from multiple numbers
-      const numbers = rawDescription.match(/[\d.,]+/g);
+      // If city is empty, set default
+      if (!city || city.trim().length === 0) {
+        city = "Sin Identificar";
+      }
+      
+      // For pattern 6, we need to extract the final amount from multiple numbers
+      const numbers = rawDescription.match(/[-]?[\d.,]+/g);
       if (numbers && numbers.length > 0) {
         // Take the last meaningful number as the final amount
         finalAmount = numbers[numbers.length - 1];
-        // Clean description by removing all numbers
-        rawDescription = rawDescription.replace(/[\d.,]+/g, '').trim();
+        // Clean description by removing all numbers and extra characters
+        rawDescription = rawDescription.replace(/[-]?[\d.,]+/g, '').replace(/\s+/g, ' ').trim();
       }
     }
     
