@@ -61,8 +61,9 @@ const categoryRules: Record<string, string[]> = {
   'Bancarios y Finanzas': [
     'BANK', 'ATM', 'TRANSFER', 'FEE', 'INTEREST',
     'CREDIT CARD', 'LOAN', 'MORTGAGE', 'INVESTMENT',
-    'BANCO', 'TRANSFERENCIA', 'COMISION', 'INTERES',
-    'CREDITO', 'PRESTAMO', 'INVERSION'
+    'BANCO', 'TRANSFERENCIA', 'TRANSF', 'COMISION', 'INTERES',
+    'CREDITO', 'PRESTAMO', 'INVERSION', 'PAGO', 'ABONO',
+    'MULTIPAGO', 'RETIRO', 'GIRO', 'CHEQUE'
   ],
   'Ingresos': [
     'SALARY', 'PAYROLL', 'WAGE', 'BONUS', 'REFUND',
