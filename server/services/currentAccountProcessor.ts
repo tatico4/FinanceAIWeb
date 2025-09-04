@@ -219,52 +219,43 @@ function parseCurrentAccountTransaction(line: string): RawTransaction | null {
       // "8000012.975.000" -> code: 8000, amount: 2.975.000 (remove leading 0)
       // "3000251.595.7904.627.038" -> code: 30002, amount: 1.595.790, balance: 4.627.038
       
-      // Extract all formatted numbers from the sequence
-      const allNumbers = numberSequence.match(/\d{1,3}(?:\.\d{3})+/g);
+      // Extract formatted amounts (X.XXX.XXX pattern)
+      const formattedAmounts = numberSequence.match(/\d{1,3}(?:\.\d{3})+/g);
       
-      if (allNumbers && allNumbers.length >= 1) {
-        console.log(`   Number sequence: "${numberSequence}"`);
-        console.log(`   All numbers found: [${allNumbers.join(', ')}]`);
+      console.log(`   Number sequence: "${numberSequence}"`);
+      console.log(`   Formatted amounts found: [${formattedAmounts?.join(', ') || 'none'}]`);
+      
+      if (formattedAmounts && formattedAmounts.length >= 1) {
+        // For sequences like "8000012.975.000":
+        // 1. Extract "012.975.000"
+        // 2. Remove leading zeros to get "2.975.000"
         
-        if (allNumbers.length === 1) {
-          // Simple case: only one amount (probably the final balance)
-          // Try to extract transaction amount from the sequence before the formatted number
-          const beforeAmount = numberSequence.split(allNumbers[0])[0];
-          const transactionMatch = beforeAmount.match(/(\d{1,3}(?:\.\d{3})*(?:\d+)?)$/);
+        let selectedAmount = formattedAmounts[0];
+        
+        // If amount starts with zeros, remove them to get actual transaction amount
+        if (selectedAmount.startsWith('0')) {
+          // Remove leading zeros: "012.975.000" -> "2.975.000"
+          selectedAmount = selectedAmount.replace(/^0+/, '');
           
-          if (transactionMatch) {
-            // Extract transaction amount, removing leading zeros
-            let transAmount = transactionMatch[1];
-            if (transAmount.startsWith('0')) {
-              transAmount = transAmount.substring(1);
-            }
-            amountStr = transAmount;
-          } else {
-            amountStr = allNumbers[0];
-          }
-        } else {
-          // Multiple amounts: find the transaction amount (usually the smaller one, not the balance)
-          const amounts = allNumbers.map(n => parseFloat(n.replace(/\./g, '')));
-          const maxAmount = Math.max(...amounts);
-          
-          // Transaction amount is typically the smaller one
-          for (let i = 0; i < amounts.length; i++) {
-            if (amounts[i] < maxAmount && amounts[i] > 100000) { // Min threshold for meaningful amounts
-              amountStr = allNumbers[i];
-              break;
-            }
-          }
-          
-          // Fallback to first amount if no smaller one found
-          if (!amountStr) {
-            amountStr = allNumbers[0];
+          // If we removed all digits before the dot, add back one
+          if (selectedAmount.startsWith('.')) {
+            selectedAmount = '0' + selectedAmount;
           }
         }
         
-        console.log(`   Selected transaction amount: "${amountStr}"`);
+        amountStr = selectedAmount;
+        console.log(`   Processed amount (removed leading zeros): "${amountStr}"`);
+        
       } else {
-        console.log('❌ Could not extract amount from number sequence');
-        return null;
+        // No formatted amounts found, try to extract from unformatted sequence
+        const lastDigits = numberSequence.match(/(\d+)$/);
+        if (lastDigits) {
+          amountStr = lastDigits[1];
+          console.log(`   Fallback amount: "${amountStr}"`);
+        } else {
+          console.log('❌ Could not extract amount from number sequence');
+          return null;
+        }
       }
       
     } else if (patternUsed === 2) {
