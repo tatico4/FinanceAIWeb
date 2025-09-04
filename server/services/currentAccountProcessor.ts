@@ -219,43 +219,25 @@ function parseCurrentAccountTransaction(line: string): RawTransaction | null {
       // "8000012.975.000" -> code: 8000, amount: 2.975.000 (remove leading 0)
       // "3000251.595.7904.627.038" -> code: 30002, amount: 1.595.790, balance: 4.627.038
       
-      // Extract formatted amounts (X.XXX.XXX pattern)
-      const formattedAmounts = numberSequence.match(/\d{1,3}(?:\.\d{3})+/g);
+      // Parse number sequence to extract transaction amount
+      // Example: "8000012.975.000" -> extract "2.975.000"
+      // Logic: 8000 (ignore) + 012.975.000 (find this) -> remove leading 0 -> 2.975.000
       
       console.log(`   Number sequence: "${numberSequence}"`);
-      console.log(`   Formatted amounts found: [${formattedAmounts?.join(', ') || 'none'}]`);
       
-      if (formattedAmounts && formattedAmounts.length >= 1) {
-        // For sequences like "8000012.975.000":
-        // 1. Extract "012.975.000"
-        // 2. Remove leading zeros to get "2.975.000"
+      // Find the formatted amount pattern (X.XXX.XXX)
+      const formattedMatch = numberSequence.match(/0?(\d{1,3}(?:\.\d{3})+)/);
+      
+      if (formattedMatch) {
+        let transactionAmount = formattedMatch[1]; // Get the captured group (without leading 0 if any)
         
-        let selectedAmount = formattedAmounts[0];
+        console.log(`   Found formatted amount: "${formattedMatch[0]}"`);
+        console.log(`   Transaction amount (cleaned): "${transactionAmount}"`);
         
-        // If amount starts with zeros, remove them to get actual transaction amount
-        if (selectedAmount.startsWith('0')) {
-          // Remove leading zeros: "012.975.000" -> "2.975.000"
-          selectedAmount = selectedAmount.replace(/^0+/, '');
-          
-          // If we removed all digits before the dot, add back one
-          if (selectedAmount.startsWith('.')) {
-            selectedAmount = '0' + selectedAmount;
-          }
-        }
-        
-        amountStr = selectedAmount;
-        console.log(`   Processed amount (removed leading zeros): "${amountStr}"`);
-        
+        amountStr = transactionAmount;
       } else {
-        // No formatted amounts found, try to extract from unformatted sequence
-        const lastDigits = numberSequence.match(/(\d+)$/);
-        if (lastDigits) {
-          amountStr = lastDigits[1];
-          console.log(`   Fallback amount: "${amountStr}"`);
-        } else {
-          console.log('❌ Could not extract amount from number sequence');
-          return null;
-        }
+        console.log('❌ Could not find formatted amount in sequence');
+        return null;
       }
       
     } else if (patternUsed === 2) {
