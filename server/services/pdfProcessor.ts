@@ -45,8 +45,13 @@ export async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
     
     if (pdfType === 'current_account') {
       console.log('Routing to Current Account processor...');
-      const { processCurrentAccountPDF } = await import('./currentAccountProcessor');
-      return processCurrentAccountPDF(buffer);
+      try {
+        const currentAccountModule = await import('./currentAccountProcessor');
+        return currentAccountModule.processCurrentAccountPDF(buffer);
+      } catch (importError) {
+        console.error('Error importing current account processor:', importError);
+        throw new Error('Error cargando procesador de cuenta corriente');
+      }
     } else {
       console.log('Routing to Credit Card processor...');
       return processCreditCardPDF(buffer);
