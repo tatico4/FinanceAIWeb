@@ -148,14 +148,15 @@ function isNonTransactionLineCurrentAccount(line: string): boolean {
  */
 function parseCurrentAccountTransaction(line: string): RawTransaction | null {
   try {
-    // Pattern 1: Complex format with multiple amounts
+    // Pattern 1: Complex format with transaction codes and amounts
     // "01/08Agustinas0797601101 Transf. GENERA SPA8000012.975.000"
-    // Extract: Date, Location, Code, Description, then parse amounts separately
-    const pattern1 = /^(\d{1,2}\/\d{1,2})([A-Za-z\s]+?)(\d+)\s(.+?)\s*(\d+.*\d{1,3}(?:\.\d{3})+)$/;
+    // Format: Date + Location + InitialCode + Description + AdditionalCode + TransactionAmount + FinalBalance
+    const pattern1 = /^(\d{1,2}\/\d{1,2})([A-Za-z\s]+?)(\d+)\s([A-Za-z\s\.]+?)(\d+.*)$/;
     
-    // Pattern 2: Simple format - Amount at the end
-    // "05/08AgustinasTraspaso Internet a T. Crédito2.561.017"  
-    const pattern2 = /^(\d{1,2}\/\d{1,2})([A-Za-z\s]+?)(.+?)(\d{1,3}(?:\.\d{3})+)$/;
+    // Pattern 2: Simple format - Amount at the end  
+    // "05/08AgustinasTraspaso Internet a T. Crédito2.561.017"
+    // Extract location and description properly
+    const pattern2 = /^(\d{1,2}\/\d{1,2})([A-Za-z]+)([A-Za-z\s\.]+?)(\d{1,3}(?:\.\d{3})+)$/;
     
     // Pattern 3: Fallback for other formats
     const pattern3 = /^(\d{1,2}\/\d{1,2})([A-Za-z\s]+)(.+?)(\d{1,3}(?:\.\d{3})+)$/;
@@ -206,42 +207,73 @@ function parseCurrentAccountTransaction(line: string): RawTransaction | null {
     let amountStr = '';
     
     if (patternUsed === 1) {
-      // Complex format - need to extract transaction amount from number sequence
+      // Complex format - parse transaction details and amounts
       let numberSequence: string;
       [, dateStr, location, codes, description, numberSequence] = match;
       
-      // Parse the number sequence to extract actual transaction amount
-      // "8000012.975.000" should extract "2.975.000"
-      const numbers = numberSequence.match(/(\d{1,3}(?:\.\d{3})+)/g);
-      if (numbers && numbers.length >= 1) {
-        // Use the last meaningful amount as transaction amount
-        amountStr = numbers[numbers.length - 1];
+      // Clean description - remove trailing spaces and ensure proper format
+      description = description.trim();
+      
+      // Parse the number sequence to extract transaction amount vs balance
+      // Examples:
+      // "8000012.975.000" -> code: 8000, amount: 2.975.000 (remove leading 0)
+      // "3000251.595.7904.627.038" -> code: 30002, amount: 1.595.790, balance: 4.627.038
+      
+      // Extract all formatted numbers from the sequence
+      const allNumbers = numberSequence.match(/\d{1,3}(?:\.\d{3})+/g);
+      
+      if (allNumbers && allNumbers.length >= 1) {
+        console.log(`   Number sequence: "${numberSequence}"`);
+        console.log(`   All numbers found: [${allNumbers.join(', ')}]`);
         
-        // If there are multiple amounts, try to identify the transaction amount
-        // (usually not the largest one which is typically the balance)
-        if (numbers.length > 1) {
-          const amounts = numbers.map(n => parseFloat(n.replace(/\./g, '')));
+        if (allNumbers.length === 1) {
+          // Simple case: only one amount (probably the final balance)
+          // Try to extract transaction amount from the sequence before the formatted number
+          const beforeAmount = numberSequence.split(allNumbers[0])[0];
+          const transactionMatch = beforeAmount.match(/(\d{1,3}(?:\.\d{3})*(?:\d+)?)$/);
+          
+          if (transactionMatch) {
+            // Extract transaction amount, removing leading zeros
+            let transAmount = transactionMatch[1];
+            if (transAmount.startsWith('0')) {
+              transAmount = transAmount.substring(1);
+            }
+            amountStr = transAmount;
+          } else {
+            amountStr = allNumbers[0];
+          }
+        } else {
+          // Multiple amounts: find the transaction amount (usually the smaller one, not the balance)
+          const amounts = allNumbers.map(n => parseFloat(n.replace(/\./g, '')));
           const maxAmount = Math.max(...amounts);
           
-          // Find the transaction amount (not the balance)
-          for (let i = 0; i < amounts.length - 1; i++) {
-            if (amounts[i] < maxAmount && amounts[i] > 0) {
-              amountStr = numbers[i];
+          // Transaction amount is typically the smaller one
+          for (let i = 0; i < amounts.length; i++) {
+            if (amounts[i] < maxAmount && amounts[i] > 100000) { // Min threshold for meaningful amounts
+              amountStr = allNumbers[i];
               break;
             }
           }
+          
+          // Fallback to first amount if no smaller one found
+          if (!amountStr) {
+            amountStr = allNumbers[0];
+          }
         }
+        
+        console.log(`   Selected transaction amount: "${amountStr}"`);
       } else {
         console.log('❌ Could not extract amount from number sequence');
         return null;
       }
       
-      console.log(`   Number sequence: "${numberSequence}"`);
-      console.log(`   Extracted numbers: [${numbers?.join(', ')}]`);
-      console.log(`   Selected amount: "${amountStr}"`);
-      
-    } else if (patternUsed === 2 || patternUsed === 3) {
-      // Simpler formats - amount is at the end
+    } else if (patternUsed === 2) {
+      // Simple format with location + description
+      [, dateStr, location, description, amountStr] = match;
+      description = description.trim();
+      codes = ''; // No codes in this format
+    } else if (patternUsed === 3) {
+      // Fallback format
       [, dateStr, location, description, amountStr] = match;
       codes = ''; // No codes in this format
     }
