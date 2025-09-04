@@ -5,6 +5,112 @@ interface RawTransaction {
 }
 
 /**
+ * Detect PDF type and route to appropriate processor
+ */
+export async function processPDF(buffer: Buffer): Promise<RawTransaction[]> {
+  try {
+    console.log('\n=== PDF TYPE DETECTION ===');
+    
+    // Import pdf-extraction dynamically
+    let extract;
+    try {
+      const pdfExtraction = await import('pdf-extraction');
+      extract = pdfExtraction.extract || pdfExtraction.default?.extract || pdfExtraction.default;
+    } catch (importError) {
+      console.error('Failed to import pdf-extraction:', importError);
+      throw new Error('Error cargando el módulo PDF. Intenta con formato Excel o CSV.');
+    }
+    
+    if (!extract || typeof extract !== 'function') {
+      throw new Error('pdf-extraction module not properly loaded');
+    }
+    
+    // Extract text to determine PDF type
+    const data = await extract(buffer, {});
+    let text: string;
+    
+    if (typeof data.text === 'string') {
+      text = data.text;
+    } else if (data.text && typeof data.text === 'object' && 'text' in data.text) {
+      text = (data.text as any).text;
+    } else {
+      throw new Error('No se pudo extraer texto del PDF');
+    }
+    
+    console.log(`Extracted text length: ${text.length}`);
+    
+    // Detect PDF type based on content
+    const pdfType = detectPDFType(text);
+    console.log(`Detected PDF type: ${pdfType}`);
+    
+    if (pdfType === 'current_account') {
+      console.log('Routing to Current Account processor...');
+      const { processCurrentAccountPDF } = await import('./currentAccountProcessor');
+      return processCurrentAccountPDF(buffer);
+    } else {
+      console.log('Routing to Credit Card processor...');
+      return processCreditCardPDF(buffer);
+    }
+    
+  } catch (error) {
+    console.error('PDF processing error:', error);
+    throw new Error(`Error procesando PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+  }
+}
+
+/**
+ * Detect the type of PDF based on content
+ */
+function detectPDFType(text: string): 'credit_card' | 'current_account' {
+  const upperText = text.toUpperCase();
+  
+  // Current account indicators
+  const currentAccountIndicators = [
+    'CUENTA CORRIENTE',
+    'B A N C O  S A N T A N D E R',
+    'SALDO INICIAL',
+    'DEPOSITOS',
+    'OTROS ABONOS',
+    'CHEQUES',
+    'OTROS CARGOS',
+    'INFORMACION DE CUENTA CORRIENTE'
+  ];
+  
+  // Credit card indicators
+  const creditCardIndicators = [
+    'ESTADO DE CUENTA',
+    'TARJETA DE CREDITO',
+    'CMR PUNTOS',
+    'COSTO MONETARIO',
+    'CLIENTE ELITE',
+    'FALABELLA'
+  ];
+  
+  // Count matches for each type
+  let currentAccountScore = 0;
+  let creditCardScore = 0;
+  
+  for (const indicator of currentAccountIndicators) {
+    if (upperText.includes(indicator)) {
+      currentAccountScore++;
+      console.log(`Found current account indicator: ${indicator}`);
+    }
+  }
+  
+  for (const indicator of creditCardIndicators) {
+    if (upperText.includes(indicator)) {
+      creditCardScore++;
+      console.log(`Found credit card indicator: ${indicator}`);
+    }
+  }
+  
+  console.log(`Scores - Current Account: ${currentAccountScore}, Credit Card: ${creditCardScore}`);
+  
+  // Return the type with higher score, default to credit card
+  return currentAccountScore > creditCardScore ? 'current_account' : 'credit_card';
+}
+
+/**
  * Credit Card Statement PDF Processor
  * Specifically designed for Chilean credit card statements with format:
  * Ciudad DD/MM/YYYY Descripción Código Monto1 Monto2 VencimientoFinal MontoFinal
@@ -204,7 +310,10 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
     }
     
     // Handle different match groups based on pattern used
-    let city, dateStr, rawDescription, finalAmount;
+    let city = '';
+    let dateStr = '';
+    let rawDescription = '';
+    let finalAmount = '';
     
     if (patternUsed === 1) {
       // Standard format with spaces
@@ -229,7 +338,7 @@ function parseCreditCardTransaction(line: string): RawTransaction | null {
       }
       
       // For pattern 6, we need to extract the final amount from multiple numbers
-      const numbers = rawDescription.match(/[-]?[\d.,]+/g);
+      const numbers = rawDescription?.match(/[-]?[\d.,]+/g);
       if (numbers && numbers.length > 0) {
         // Take the last meaningful number as the final amount
         finalAmount = numbers[numbers.length - 1];

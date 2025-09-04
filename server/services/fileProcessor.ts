@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { processCreditCardPDF } from './pdfProcessor';
+import { processPDF } from './pdfProcessor';
 
 export interface RawTransaction {
   date: string;
@@ -37,8 +37,8 @@ export async function processFile(filePath: string, fileType: string): Promise<R
   
   switch (fileType) {
     case '.pdf':
-      console.log('Processing as PDF using Credit Card processor...');
-      return processCreditCardPDF(fileBuffer);
+      console.log('Processing as PDF with auto-detection...');
+      return processPDF(fileBuffer);
     case '.xlsx':
     case '.xls':
       console.log('Processing as Excel...');
